@@ -14,17 +14,17 @@ export const getStoredUser = () => {
 };
 
 // ─── loginRequest ─────────────────────────────────────────────────────────────
-// POST /auth/login → guarda token + user en localStorage → devuelve { user }
+// POST /auth/login → servidor envía token como httpOnly cookie → guarda user en localStorage
+// SEGURIDAD: Token está en cookie httpOnly (no accesible via JS, protegido contra XSS)
 export const loginRequest = async ({ email, password }) => {
   const response = await publicApi.post("/auth/login", { email, password });
-  const { token, user } = response.data;
-  localStorage.setItem("neon_token", token);
+  const { user } = response.data;
   localStorage.setItem("neon_user", JSON.stringify(user));
   return { user };
 };
 
 // ─── registerRequest ──────────────────────────────────────────────────────────
-// POST /auth/register → guarda token + user en localStorage → devuelve { user }
+// POST /auth/register → servidor envía token como httpOnly cookie → guarda user en localStorage
 export const registerRequest = async ({ docId, name, email, phone, password }) => {
   const response = await publicApi.post("/auth/register", {
     docId,
@@ -33,31 +33,28 @@ export const registerRequest = async ({ docId, name, email, phone, password }) =
     phone: phone || undefined,
     password,
   });
-  const { token, user } = response.data;
-  localStorage.setItem("neon_token", token);
+  const { user } = response.data;
   localStorage.setItem("neon_user", JSON.stringify(user));
   return { user };
 };
 
 // ─── logoutRequest ────────────────────────────────────────────────────────────
-// POST /auth/logout (con token) → limpia localStorage
+// POST /auth/logout → servidor limpia la cookie httpOnly → limpia localStorage local
 export const logoutRequest = async () => {
   try {
     await api.post("/auth/logout");
   } catch {
     // Si el token ya expiró o hay error de red, igual limpiamos localmente
   } finally {
-    localStorage.removeItem("neon_token");
     localStorage.removeItem("neon_user");
   }
 };
 
 // ─── googleLoginRequest ───────────────────────────────────────────────────────
-// POST /auth/google → guarda token + user en localStorage → devuelve { user }
+// POST /auth/google → servidor envía token como httpOnly cookie → guarda user en localStorage
 export const googleLoginRequest = async (idToken) => {
   const response = await publicApi.post("/auth/google", { idToken });
-  const { token, user } = response.data;
-  localStorage.setItem("neon_token", token);
+  const { user } = response.data;
   localStorage.setItem("neon_user", JSON.stringify(user));
   return { user };
 };

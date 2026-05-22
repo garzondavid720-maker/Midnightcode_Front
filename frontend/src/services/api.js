@@ -7,17 +7,15 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // withCredentials: true envía las cookies httpOnly automáticamente
+  // SEGURIDAD: El token está protegido en la cookie httpOnly, no en JS
+  withCredentials: true,
 });
 
-// Request interceptor: añade el token
+// Request interceptor: no es necesario añadir token
+// El navegador envía automáticamente la cookie httpOnly gracias a withCredentials: true
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("neon_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
+  (config) => config,
   (error) => Promise.reject(error)
 );
 
@@ -51,7 +49,7 @@ api.interceptors.response.use(
           break;
         case 401:
           userMessage = "Debes iniciar sesión para continuar.";
-          localStorage.removeItem("neon_token");
+          // Limpiar solo neon_user (token está en cookie httpOnly, limpiada por servidor)
           localStorage.removeItem("neon_user");
           window.location.href = "/login";
           break;

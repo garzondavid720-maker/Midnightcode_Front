@@ -45,21 +45,19 @@ export function AuthProvider({ children }) {
   const [authError,    setAuthError]    = useState(null);
   const [loading,      setLoading]      = useState(false);
 
-  // initializing = true mientras verificamos el rol actual en el backend.
-  // Bloqueamos el render de rutas hasta saberlo, para que PrivateRoute
-  // nunca vea un rol desactualizado del localStorage.
-  const [initializing, setInitializing] = useState(() => {
-    return !!(localStorage.getItem("neon_token") && getStoredUser());
-  });
+  // initializing = true mientras verificamos si hay sesión activa.
+  // El token se envía automáticamente como httpOnly cookie, así que solo
+  // necesitamos verificar si el user data está en localStorage.
+  const [initializing, setInitializing] = useState(() => !!getStoredUser());
 
   useEffect(() => {
-    const token   = localStorage.getItem("neon_token");
-    const stored  = getStoredUser();
-    if (!token || !stored) {
+    const stored = getStoredUser();
+    if (!stored) {
       setInitializing(false);
       return;
     }
 
+    // Verificar que la cookie del servidor sigue siendo válida
     api.get("/auth/me")
       .then(({ data }) => {
         if (data.success) {
@@ -68,8 +66,7 @@ export function AuthProvider({ children }) {
         }
       })
       .catch(() => {
-        // Token expirado o inválido → limpiar sesión
-        localStorage.removeItem("neon_token");
+        // Cookie expirada o inválida → limpiar sesión local
         localStorage.removeItem("neon_user");
         setUser(null);
       })
