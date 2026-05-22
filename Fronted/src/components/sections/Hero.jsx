@@ -1,62 +1,61 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import publicApi from "../../../services/publicApi";
+import publicApi from "../../services/publicApi";
 
 export default function Hero() {
-  // parallax offset
-  const [offset, setOffset] = useState(0);
-  // countdown
-  const [countdown, setCountdown] = useState(null); // { label, days, hours, mins, secs }
-  // open status
+  const [offset,    setOffset]    = useState(0);
+  const [countdown, setCountdown] = useState(null);
   const [statusBar, setStatusBar] = useState({ open: false, text: "" });
 
-  // Parallax
+  // Parallax suave
   useEffect(() => {
-    const onScroll = () => setOffset(window.scrollY * 0.5);
+    const onScroll = () => setOffset(window.scrollY * 0.4);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Open status
+  // Estado abierto/cerrado
   useEffect(() => {
-    const DAYS = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-    const OPEN_DAYS = [3,4,5,6,0]; // Wed=3, Thu=4, Fri=5, Sat=6, Sun=0
-    const now = new Date();
-    const day = now.getDay();
-    const hour = now.getHours();
-    const isOpenDay = OPEN_DAYS.includes(day);
+    const DAYS      = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+    const OPEN_DAYS = [3, 4, 5, 6, 0];
+    const now       = new Date();
+    const day       = now.getDay();
+    const hour      = now.getHours();
+    const isOpenDay  = OPEN_DAYS.includes(day);
     const isOpenHour = hour >= 22 || hour < 5;
+
     if (isOpenDay && isOpenHour) {
-      setStatusBar({ open: true, text: `Abierto esta noche · ${DAYS[day]} · Puertas 10PM` });
+      setStatusBar({ open: true, text: `Abierto · ${DAYS[day]} · Puertas 10PM` });
     } else {
-      // Find next open day
       let nextDay = (day + 1) % 7;
       let daysAhead = 1;
       while (!OPEN_DAYS.includes(nextDay)) { nextDay = (nextDay + 1) % 7; daysAhead++; }
-      setStatusBar({ open: false, text: `Abrimos el ${DAYS[nextDay]}${daysAhead === 1 ? " mañana" : ""}` });
+      setStatusBar({ open: false, text: `Próxima apertura: ${DAYS[nextDay]}${daysAhead === 1 ? " mañana" : ""}` });
     }
   }, []);
 
-  // Countdown
+  // Countdown al próximo evento
   useEffect(() => {
     let timer;
     publicApi.get("/eventos").then(({ data }) => {
       if (!data.success || !data.data?.length) return;
-      const now = new Date();
+      const now      = new Date();
       const upcoming = data.data
         .filter(e => new Date(e.fecha) > now)
         .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
       if (!upcoming.length) return;
-      const next = upcoming[0];
+      const next   = upcoming[0];
       const target = new Date(next.fecha);
       const tick = () => {
         const diff = target - new Date();
         if (diff <= 0) { setCountdown(null); return; }
-        const days = Math.floor(diff / 86400000);
-        const hours = Math.floor((diff % 86400000) / 3600000);
-        const mins  = Math.floor((diff % 3600000) / 60000);
-        const secs  = Math.floor((diff % 60000) / 1000);
-        setCountdown({ label: next.nombre, days, hours, mins, secs });
+        setCountdown({
+          label: next.nombre,
+          days:  Math.floor(diff / 86400000),
+          hours: Math.floor((diff % 86400000) / 3600000),
+          mins:  Math.floor((diff % 3600000) / 60000),
+          secs:  Math.floor((diff % 60000) / 1000),
+        });
       };
       tick();
       timer = setInterval(tick, 1000);
@@ -64,107 +63,126 @@ export default function Hero() {
     return () => clearInterval(timer);
   }, []);
 
-  const bars = Array.from({ length: 28 });
+  const bars = Array.from({ length: 32 });
 
   return (
-    <section id="hero" className="relative h-screen w-full flex items-center justify-center overflow-hidden">
-      {/* Background with parallax */}
+    <section
+      id="hero"
+      className="relative w-full flex flex-col items-center overflow-hidden"
+      style={{ minHeight: "100svh" }}
+    >
+      {/* ── Fondo con parallax ── */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <img
           src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvyU3ZUiG_yO08zTeWovuNZvrMsmOC3-hfKEyqjIZaaow73PJCKxT3cyWQxRD-sI05ldZMEkEQsXrx8XvP7MXtfuV49a3dDAdYOoWedvyx14jQto9zzdIktxteVuiyuTYBVbBO-gIstc6LRUSG1EMJ6tDIz9CWKQkv4goX8JKzhtGrbj04eCLcT7_viTgqoHb3yH2QLe8XrqVdHxjEhFFJYb2aDko1QmMo51fMxQ_GEuvT0BT8TSzAKKY_TYlfM34hBzhPizGM"
-          className="w-full h-full object-cover opacity-70 scale-110"
-          style={{ transform: `scale(1.1) translateY(${offset * 0.3}px)` }}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-50 scale-110 pointer-events-none select-none"
+          style={{ transform: `scale(1.1) translateY(${offset * 0.3}px)`, transition: "transform 0.1s linear" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/30 to-transparent" />
-        <div className="absolute inset-0 bg-primary/5 mix-blend-color-dodge" />
+        {/* Gradiente oscuro desde abajo */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/60 to-background-dark/20" />
+        {/* Tinte de color primario muy sutil */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent" />
       </div>
 
-      {/* Open status bar */}
-      <div className="absolute top-24 left-1/2 -translate-x-1/2 z-20">
-        <div className={`flex items-center gap-2 px-5 py-2 rounded-full glass border text-xs font-bold uppercase tracking-widest ${statusBar.open ? "border-green-400/30 text-green-400" : "border-red-400/30 text-red-400"}`}>
-          <span className={`w-2 h-2 rounded-full ${statusBar.open ? "bg-green-400 status-dot" : "bg-red-400"}`} />
-          {statusBar.text}
+      {/* ── Contenido principal — ocupa todo el alto disponible ── */}
+      <div className="relative z-10 flex flex-col items-center justify-center flex-1 w-full px-4 pt-32 pb-36 text-center">
+
+        {/* Badge de estado — ahora dentro del flujo, no absolute */}
+        <div className="mb-6">
+          <span className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest glass border ${
+            statusBar.open
+              ? "border-emerald-400/40 text-emerald-400"
+              : "border-primary/30 text-primary"
+          }`}>
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusBar.open ? "bg-emerald-400 status-dot" : "bg-primary animate-pulse"}`} />
+            {statusBar.text}
+          </span>
         </div>
-      </div>
 
-      {/* Main content */}
-      <div className="relative z-10 text-center px-4 max-w-5xl">
-        <span className="inline-block px-4 py-1 rounded-full border border-primary/40 text-primary text-xs font-bold uppercase tracking-[0.3em] mb-6 glass">
+        {/* Tagline */}
+        <p className="text-[11px] font-bold uppercase tracking-[0.4em] text-primary/70 mb-4">
           El Eclipse de la Vida Nocturna
-        </span>
+        </p>
 
-        <h1 className="text-6xl md:text-9xl font-black text-white leading-none tracking-tighter mb-8 italic uppercase">
+        {/* Título principal */}
+        <h1 className="text-7xl sm:text-8xl md:text-[9rem] font-black leading-none tracking-tighter italic uppercase mb-6 text-white">
           SOBRECARGA{" "}
+          <br className="hidden sm:block" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400 text-glow">
             NEON
           </span>
         </h1>
 
-        <p className="text-slate-300 text-lg md:text-xl max-w-2xl mx-auto mb-6 font-light leading-relaxed">
+        {/* Descripción */}
+        <p className="text-slate-300 text-base md:text-lg max-w-xl mx-auto mb-8 font-light leading-relaxed">
           Entra a un universo donde la energía, la música y el lujo se fusionan.
-          Descubre el pulso eléctrico de la noche en el santuario más exclusivo de la ciudad.
+          El santuario más exclusivo de la ciudad te espera.
         </p>
 
         {/* Countdown */}
         {countdown && (
-          <div className="flex justify-center gap-4 mb-8">
-            <div className="glass border border-primary/20 px-3 py-2 rounded-xl text-center min-w-[64px]">
-              <p className="text-2xl font-black text-primary font-mono">{String(countdown.days).padStart(2,"0")}</p>
-              <p className="text-[9px] text-slate-500 uppercase tracking-widest">Días</p>
-            </div>
-            <div className="glass border border-primary/20 px-3 py-2 rounded-xl text-center min-w-[64px]">
-              <p className="text-2xl font-black text-primary font-mono">{String(countdown.hours).padStart(2,"0")}</p>
-              <p className="text-[9px] text-slate-500 uppercase tracking-widest">Horas</p>
-            </div>
-            <div className="glass border border-primary/20 px-3 py-2 rounded-xl text-center min-w-[64px]">
-              <p className="text-2xl font-black text-primary font-mono">{String(countdown.mins).padStart(2,"0")}</p>
-              <p className="text-[9px] text-slate-500 uppercase tracking-widest">Min</p>
-            </div>
-            <div className="glass border border-primary/20 px-3 py-2 rounded-xl text-center min-w-[64px]">
-              <p className="text-2xl font-black text-primary font-mono">{String(countdown.secs).padStart(2,"0")}</p>
-              <p className="text-[9px] text-slate-500 uppercase tracking-widest">Seg</p>
+          <div className="mb-8">
+            <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest mb-3">
+              Próximo evento · {countdown.label}
+            </p>
+            <div className="flex justify-center gap-3">
+              {[
+                { val: countdown.days,  label: "Días"  },
+                { val: countdown.hours, label: "Horas" },
+                { val: countdown.mins,  label: "Min"   },
+                { val: countdown.secs,  label: "Seg"   },
+              ].map(({ val, label }) => (
+                <div key={label} className="glass border border-primary/20 px-3 py-2.5 rounded-xl text-center min-w-[60px]">
+                  <p className="text-2xl font-black text-primary font-mono tabular-nums">
+                    {String(val).padStart(2, "0")}
+                  </p>
+                  <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">{label}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}
-        {countdown && (
-          <p className="text-xs text-slate-500 font-mono uppercase tracking-widest mb-6">
-            Próximo evento: {countdown.label}
-          </p>
-        )}
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        {/* CTAs */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link to="/register">
-            <button className="bg-primary text-white px-10 py-4 rounded-xl font-black text-lg neon-glow uppercase hover:translate-y-[-2px] transition-all">
+            <button className="bg-primary hover:bg-primary/90 active:scale-95 text-white px-10 py-4 rounded-xl font-black text-base uppercase tracking-wide neon-glow transition-all duration-200">
               Reservar VIP
             </button>
           </Link>
           <Link to="/register">
-            <button className="glass text-white px-10 py-4 rounded-xl font-black text-lg uppercase hover:bg-primary/20 transition-all border border-white/10">
+            <button className="glass border border-white/10 hover:border-primary/40 hover:bg-primary/10 active:scale-95 text-white px-10 py-4 rounded-xl font-black text-base uppercase tracking-wide transition-all duration-200">
               Pedir Canción
             </button>
           </Link>
         </div>
+
       </div>
 
-      {/* Audio visualizer */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center gap-[3px] h-20 z-10 px-4 opacity-60">
+      {/* ── Scroll hint — separado del contenido, pegado al fondo ── */}
+      <div className="relative z-10 pb-28 flex flex-col items-center gap-1.5 opacity-40 pointer-events-none select-none">
+        <p className="text-[9px] uppercase tracking-[0.5em] text-slate-400">Desliza para sumergirte</p>
+        <span className="material-symbols-outlined text-lg animate-bounce text-slate-400">keyboard_double_arrow_down</span>
+      </div>
+
+      {/* ── Visualizador de audio — borde inferior ── */}
+      <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center gap-[2px] h-16 z-10 px-6 pointer-events-none">
         {bars.map((_, i) => (
           <div
             key={i}
-            className="flex-1 max-w-[8px] rounded-t-full bar-anim"
+            className="flex-1 max-w-[6px] rounded-t-full bar-anim opacity-50"
             style={{
-              animationDelay: `${i * 0.08}s`,
-              background: i % 3 === 0 ? "#BF00FF" : i % 3 === 1 ? "#FF00FF" : "rgba(255,255,255,0.3)",
-              minHeight: "8px",
+              animationDelay: `${i * 0.06}s`,
+              animationDuration: `${1.0 + (i % 5) * 0.15}s`,
+              background:
+                i % 3 === 0 ? "#c084fc"
+                : i % 3 === 1 ? "#a855f7"
+                : "rgba(255,255,255,0.2)",
+              minHeight: "6px",
             }}
           />
         ))}
-      </div>
-
-      {/* Scroll hint */}
-      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-40 z-20">
-        <p className="text-[10px] uppercase tracking-[0.5em]">Desliza para sumergirte</p>
-        <span className="material-symbols-outlined animate-bounce">keyboard_double_arrow_down</span>
       </div>
     </section>
   );
