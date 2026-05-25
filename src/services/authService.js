@@ -1,4 +1,3 @@
-// src/services/authService.js
 import publicApi from "./publicApi";
 import api from "./api";
 
@@ -7,7 +6,7 @@ import api from "./api";
 export const getStoredUser = () => {
   try {
     const raw = localStorage.getItem("neon_user");
-    return raw ? JSON.parse(raw) : null;
+    return raw && raw !== 'undefined' ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
@@ -15,43 +14,53 @@ export const getStoredUser = () => {
 
 // ─── loginRequest ─────────────────────────────────────────────────────────────
 // POST /auth/login → servidor envía token como httpOnly cookie → guarda user en localStorage
-// SEGURIDAD: Token está en cookie httpOnly (no accesible via JS, protegido contra XSS)
 export const loginRequest = async ({ email, password }) => {
-  const response = await publicApi.post("/auth/login", { email, password });
-  const { user } = response.data;
-  localStorage.setItem("neon_user", JSON.stringify(user));
-  return { user };
+  const response = await publicApi.post("/auth/login", { correo: email, password });
+  const { user, rol, token } = response.data;
+  
+  // Guardar usuario en localStorage (el token está en cookie httpOnly)
+  const userData = user || {
+    role: rol,
+    doc_identidad: null,
+    nombre_usu: null,
+    correo_usu: email
+  };
+  
+  localStorage.setItem("neon_user", JSON.stringify(userData));
+  
+  return { 
+    success: true,
+    user: userData,
+    role: rol || userData.role
+  };
 };
 
 // ─── registerRequest ──────────────────────────────────────────────────────────
-// POST /auth/register → servidor envía token como httpOnly cookie → guarda user en localStorage
 export const registerRequest = async ({ docId, name, email, phone, password }) => {
-  const response = await publicApi.post("/auth/register", {
-    docId,
-    name,
-    email,
-    phone: phone || undefined,
-    password,
+  const response = await publicApi.post("/usuario/register", {
+    doc_identidad: docId,
+    nombre_usu: name,
+    telefono_usu: phone,
+    correo_usu: email,
+    password_usu: password
   });
-  const { user } = response.data;
-  localStorage.setItem("neon_user", JSON.stringify(user));
-  return { user };
+  
+  // Después del registro, hacer login automático
+  return await loginRequest({ email, password });
 };
 
 // ─── logoutRequest ────────────────────────────────────────────────────────────
-// POST /auth/logout → servidor limpia la cookie httpOnly → limpia localStorage local
 export const logoutRequest = async () => {
   try {
     await api.post("/auth/logout");
-  } catch {
-    // Si el token ya expiró o hay error de red, igual limpiamos localmente
+  } catch (error) {
+    console.warn("Error en logout del backend:", error.message);
   } finally {
     localStorage.removeItem("neon_user");
   }
 };
 
 // ─── googleLoginRequest ───────────────────────────────────────────────────────
-// POST /auth/google → servidor envía token como httpOnly cookie → guarda user en localStorage
 export const googleLoginRequest = async (idToken) => {
   const response = await publicApi.post("/auth/google", { idToken });
   const { user } = response.data;
@@ -59,20 +68,27 @@ export const googleLoginRequest = async (idToken) => {
   return { user };
 };
 
-// ─── authService (objeto para forgot/reset password) ─────────────────────────
-export const authService = {
-  forgotPassword: async (email) => {
-    const response = await publicApi.post("/auth/forgot-password", {
-      email,
-    });
-    return response.data;
-  },
-
-  resetPassword: async (token, nuevaPassword) => {
-    const response = await publicApi.post("/auth/reset-password", {
-      token,
-      nuevaPassword,
-    });
-    return response.data;
-  },
+// ─── forgotPasswordRequest ────────────────────────────────────────────────────
+export const forgotPasswordRequest = async (email) => {
+  const response = await publicApi.post("/auth/forgot-password", { correo_usu: email });
+  return response.data;
 };
+
+// ─── resetPasswordRequest ─────────────────────────────────────────────────────
+export const resetPasswordRequest = async (token, nuevaPassword) => {
+  const response = await publicApi.post("/auth/reset-password", { token, nuevaPassword });
+  return response.data;
+};
+
+// ─── authService (objeto para exportación alternativa) ────────────────────────
+export const authService = {
+  login: loginRequest,
+  register: registerRequest,
+  logout: logoutRequest,
+  forgotPassword: forgotPasswordRequest,
+  resetPassword: resetPasswordRequest,
+  googleLogin: googleLoginRequest,
+  getStoredUser: getStoredUser,
+};
+
+export default authService;

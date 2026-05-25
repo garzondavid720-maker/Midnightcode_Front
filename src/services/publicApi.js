@@ -1,4 +1,3 @@
-// src/services/publicApi.js
 // Instancia de Axios SIN interceptor de token — para rutas públicas:
 // login, register, forgot-password, reset-password
 import axios from "axios";
@@ -11,7 +10,7 @@ const publicApi = axios.create({
   },
 });
 
-// Response interceptor: mensajes amigables sin redirigir al login
+// Response interceptor: NO redirige al login (es para rutas públicas)
 publicApi.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -32,6 +31,7 @@ publicApi.interceptors.response.use(
           userMessage = originalMessage || "Datos inválidos. Revisa el formulario.";
           break;
         case 401:
+          // Para publicApi, 401 significa credenciales incorrectas, no redirigir
           userMessage = originalMessage || "Credenciales incorrectas.";
           break;
         case 403:
@@ -44,7 +44,7 @@ publicApi.interceptors.response.use(
           userMessage = originalMessage || "Error de validación.";
           break;
         case 429:
-          userMessage = originalMessage || "Demasiados intentos. Espera un momento e intenta de nuevo.";
+          userMessage = originalMessage || "Demasiados intentos. Espera un momento.";
           break;
         case 500:
           userMessage = originalMessage || "Error del servidor. Intenta más tarde.";

@@ -1,4 +1,3 @@
-// src/services/api.js
 import axios from "axios";
 
 const api = axios.create({
@@ -7,19 +6,16 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  // withCredentials: true envía las cookies httpOnly automáticamente
-  // SEGURIDAD: El token está protegido en la cookie httpOnly, no en JS
-  withCredentials: true,
+  withCredentials: true, // ✅ Envía cookies httpOnly automáticamente
 });
 
-// Request interceptor: no es necesario añadir token
-// El navegador envía automáticamente la cookie httpOnly gracias a withCredentials: true
+// Request interceptor: no necesita añadir token (la cookie va sola)
 api.interceptors.request.use(
   (config) => config,
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: errores con mensajes amigables + log técnico
+// Response interceptor: manejo de errores + redirección a login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -28,16 +24,14 @@ api.interceptors.response.use(
     const url = error.config?.url;
     const method = error.config?.method?.toUpperCase();
 
-    // Log técnico detallado (solo en consola del desarrollador)
+    // Log técnico
     console.group(`Error ${status || "NETWORK"} en ${method} ${url}`);
     console.error("Detalle técnico:", originalMessage);
-    console.error("Configuración:", error.config);
     if (error.response) {
       console.error("Respuesta del servidor:", error.response.data);
     }
     console.groupEnd();
 
-    // Mensaje amigable para el usuario
     let userMessage = "Ocurrió un error inesperado. Intenta de nuevo.";
 
     if (!error.response) {
@@ -48,9 +42,10 @@ api.interceptors.response.use(
           userMessage = originalMessage || "Datos inválidos. Revisa el formulario.";
           break;
         case 401:
-          userMessage = "Debes iniciar sesión para continuar.";
+          userMessage = "Tu sesión expiró. Inicia sesión nuevamente.";
+          // Limpiar solo el usuario local (la cookie se limpia en el backend)
           localStorage.removeItem("neon_user");
-          // Avoid redirect loop — don't redirect if already on a public route
+          // Redirigir solo si no está ya en login
           if (!/^\/(login|register|forgot-password)(\/|$)/.test(window.location.pathname)) {
             window.location.href = "/login";
           }
@@ -65,10 +60,10 @@ api.interceptors.response.use(
           userMessage = originalMessage || "Error de validación. Revisa los datos ingresados.";
           break;
         case 429:
-          userMessage = originalMessage || "Demasiadas peticiones. Espera un momento e intenta de nuevo.";
+          userMessage = originalMessage || "Demasiadas peticiones. Espera un momento.";
           break;
         case 500:
-          userMessage = originalMessage || "Error del servidor. Intenta más tarde.";
+          userMessage = "Error del servidor. Intenta más tarde.";
           break;
         default:
           userMessage = originalMessage || userMessage;
