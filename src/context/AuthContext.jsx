@@ -36,14 +36,19 @@ function InitSpinner() {
         border: "3px solid #c084fc", borderTopColor: "transparent",
         borderRadius: "50%", animation: "spin 0.8s linear infinite",
       }} />
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
 
 export function AuthProvider({ children }) {
-  const [user,         setUser]         = useState(() => getStoredUser());
-  const [authError,    setAuthError]    = useState(null);
-  const [loading,      setLoading]      = useState(false);
+  const [user, setUser] = useState(() => getStoredUser());
+  const [authError, setAuthError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   // initializing = true mientras verificamos si hay sesión activa.
   // El token se envía automáticamente como httpOnly cookie, así que solo

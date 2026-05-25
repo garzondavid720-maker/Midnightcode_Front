@@ -18,7 +18,7 @@ export default function PrivateRoute({ children, role }) {
   if (role) {
     const allowed = Array.isArray(role) ? role : [role];
     if (!allowed.includes(user.role)) {
-      // Redirigir al portal correcto según el rol actual (no siempre /dashboard)
+      // Redirigir al portal correcto según el rol actual
       return <Navigate to={roleRedirect(user.role)} replace />;
     }
   }
