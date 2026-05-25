@@ -3,8 +3,8 @@ import { Suspense, lazy } from "react"
 import "./assets/css/style.css"
 
 // Auth guards
-import PrivateRoute  from "./components/auth/PrivateRoute"
-import PublicRoute   from "./components/auth/PublicRoute"
+import PrivateRoute  from "./components/Auth/PrivateRoute"
+import PublicRoute   from "./components/Auth/PublicRoute"
 
 // Public pages
 const HomePage       = lazy(() => import("./pages/public/Home"))

@@ -1,4 +1,4 @@
-import Navbar        from "../../components/layout/Navbar"
+import Navbar        from "../../components/Layout/Navbar"
 import Hero          from "../../components/sections/Hero"
 import StatsSection  from "../../components/sections/StatsSection"
 import Experience    from "../../components/sections/Experience"
@@ -9,8 +9,8 @@ import Testimonials  from "../../components/sections/Testimonials"
 import VipGallery    from "../../components/sections/VipGallery"
 import Location      from "../../components/sections/Location"
 import CTA           from "../../components/sections/CTA"
-import Footer        from "../../components/layout/Footer"
-import WelcomeModal  from "../../components/ui/WelcomeModal"
+import Footer        from "../../components/Layout/Footer"
+import WelcomeModal  from "../../components/UI/WelcomeModal"
 
 export default function HomePage() {
   return (
