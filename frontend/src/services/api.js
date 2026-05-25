@@ -49,9 +49,11 @@ api.interceptors.response.use(
           break;
         case 401:
           userMessage = "Debes iniciar sesión para continuar.";
-          // Limpiar solo neon_user (token está en cookie httpOnly, limpiada por servidor)
           localStorage.removeItem("neon_user");
-          window.location.href = "/login";
+          // Avoid redirect loop — don't redirect if already on a public route
+          if (!/^\/(login|register|forgot-password)(\/|$)/.test(window.location.pathname)) {
+            window.location.href = "/login";
+          }
           break;
         case 403:
           userMessage = originalMessage || "No tienes permisos para realizar esta acción.";

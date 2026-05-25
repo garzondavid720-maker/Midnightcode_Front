@@ -71,9 +71,7 @@ export default function ScheduleModule({ user }) {
 
   // Socket: actualización en tiempo real cuando admin modifica horario
   useEffect(() => {
-    const token = localStorage.getItem("neon_token");
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token }, transports: ["websocket","polling"] });
+    const socket = io(SOCKET_URL, { withCredentials: true, transports: ["websocket","polling"] });
     socket.on("actualizarHorarios", () => load());
     return () => socket.disconnect();
   }, [load]);

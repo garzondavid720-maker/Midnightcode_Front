@@ -74,9 +74,7 @@ export default function UserDashboard({ initialPage }) {
 
   // Socket: actualizar eventos en tiempo real cuando el admin crea/edita/elimina
   useEffect(() => {
-    const token = localStorage.getItem("neon_token");
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token }, transports: ["websocket", "polling"] });
+    const socket = io(SOCKET_URL, { withCredentials: true, transports: ["websocket", "polling"] });
     socketRef.current = socket;
     socket.on("actualizarEventos", () => fetchEventos());
     return () => { socket.disconnect(); socketRef.current = null; };
@@ -99,45 +97,10 @@ export default function UserDashboard({ initialPage }) {
   if (activePage === "songs")         return <SongRequestPage onBack={backToDash} />;
   if (activePage === "profile")       return <ProfilePage user={user} onBack={backToDash} />;
   if (activePage === "reservations")  return (
-    <div className="flex h-screen bg-black w-full overflow-hidden">
-      <Sidebar user={user} activeNav={activeNav} goTo={goTo} handleLogout={handleLogout} />
-      <main className="flex-1 overflow-y-auto p-8">
-        <h2 className="font-orbitron font-black text-2xl text-white mb-6 uppercase tracking-widest">Mis Reservas</h2>
-        {loadRes ? (
-          <div className="space-y-3">{[...Array(3)].map((_,i) => <div key={i} className="h-16 bg-white/5 rounded-xl animate-pulse" />)}</div>
-        ) : reservas.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-gray-500 font-mono text-sm">No tienes reservas aún.</p>
-            <button onClick={() => goTo("dashboard")} className="mt-4 px-5 py-2 bg-neon-purple text-black font-bold rounded-xl text-sm hover:bg-neon-magenta transition-all">
-              Ver eventos disponibles
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {reservas.map(res => (
-              <div key={res.id_reserva} className="glass-panel rounded-xl p-4 border border-white/10 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-neon-purple/15 border border-neon-purple/30 flex items-center justify-center flex-shrink-0">
-                  <NavIcon d={NAV_ITEMS[2].icon} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-white font-bold">Mesa #{res.cod_mesa} · {res.cantidad_personas} personas</p>
-                  <p className="text-gray-400 text-xs font-mono">
-                    {new Date(res.fecha_reserva).toLocaleDateString("es-CO")} · {res.hora_reserva ? String(res.hora_reserva).slice(0,5) : ""}
-                  </p>
-                </div>
-                <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                  res.estado === "Confirmada" ? "text-green-400 border-green-400/30 bg-green-500/5" :
-                  res.estado === "Cancelada"  ? "text-red-400 border-red-400/30 bg-red-500/5"      :
-                                               "text-yellow-400 border-yellow-400/30 bg-yellow-500/5"
-                }`}>
-                  {res.estado}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
+    <ReservationsView
+      user={user} activeNav={activeNav} goTo={goTo} handleLogout={handleLogout}
+      reservas={reservas} loadRes={loadRes} fetchReservas={fetchReservas}
+    />
   );
 
   // ── Dashboard principal ──────────────────────────────────────────────────
@@ -324,6 +287,71 @@ export default function UserDashboard({ initialPage }) {
           )}
 
         </div>
+      </main>
+    </div>
+  );
+}
+
+// ── Mis Reservas con cancelación ─────────────────────────────────────────────
+function ReservationsView({ user, activeNav, goTo, handleLogout, reservas, loadRes, fetchReservas }) {
+  const [cancelling, setCancelling] = useState(null);
+
+  const cancelar = async (id) => {
+    if (!window.confirm("¿Cancelar esta reserva?")) return;
+    setCancelling(id);
+    try {
+      await api.put(`/reservas/${id}`, { estado: "Cancelada" });
+      fetchReservas();
+    } catch { /* ignore */ } finally { setCancelling(null); }
+  };
+
+  return (
+    <div className="flex h-screen bg-black w-full overflow-hidden">
+      <Sidebar user={user} activeNav={activeNav} goTo={goTo} handleLogout={handleLogout} />
+      <main className="flex-1 overflow-y-auto p-8">
+        <h2 className="font-orbitron font-black text-2xl text-white mb-6 uppercase tracking-widest">Mis Reservas</h2>
+        {loadRes ? (
+          <div className="space-y-3">{[...Array(3)].map((_,i) => <div key={i} className="h-16 bg-white/5 rounded-xl animate-pulse" />)}</div>
+        ) : reservas.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-gray-500 font-mono text-sm">No tienes reservas aún.</p>
+            <button onClick={() => goTo("dashboard")} className="mt-4 px-5 py-2 bg-neon-purple text-black font-bold rounded-xl text-sm hover:bg-neon-magenta transition-all">
+              Ver eventos disponibles
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {reservas.map(res => (
+              <div key={res.id_reserva} className="glass-panel rounded-xl p-4 border border-white/10 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-neon-purple/15 border border-neon-purple/30 flex items-center justify-center flex-shrink-0">
+                  <NavIcon d={NAV_ITEMS[2].icon} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-white font-bold">Mesa #{res.cod_mesa} · {res.cantidad_personas} personas</p>
+                  <p className="text-gray-400 text-xs font-mono">
+                    {new Date(res.fecha_reserva).toLocaleDateString("es-CO")} · {res.hora_reserva ? String(res.hora_reserva).slice(0,5) : ""}
+                  </p>
+                </div>
+                <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
+                  res.estado === "Confirmada" ? "text-green-400 border-green-400/30 bg-green-500/5" :
+                  res.estado === "Cancelada"  ? "text-red-400 border-red-400/30 bg-red-500/5"      :
+                                               "text-yellow-400 border-yellow-400/30 bg-yellow-500/5"
+                }`}>
+                  {res.estado}
+                </span>
+                {res.estado === "Pendiente" && (
+                  <button
+                    onClick={() => cancelar(res.id_reserva)}
+                    disabled={cancelling === res.id_reserva}
+                    className="px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs font-bold hover:bg-red-500/20 transition-all disabled:opacity-50"
+                  >
+                    {cancelling === res.id_reserva ? "..." : "Cancelar"}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );

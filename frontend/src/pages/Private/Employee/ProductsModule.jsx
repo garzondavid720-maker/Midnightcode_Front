@@ -53,9 +53,7 @@ export default function ProductsModule({ user }) {
 
   // Sincronización en tiempo real — cuando admin o inventario hacen cambios
   useEffect(() => {
-    const token = localStorage.getItem("neon_token");
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token }, transports: ["websocket", "polling"] });
+    const socket = io(SOCKET_URL, { withCredentials: true, transports: ["websocket", "polling"] });
     socket.on("actualizarProductos", () => load());
     return () => socket.disconnect();
   }, [load]);

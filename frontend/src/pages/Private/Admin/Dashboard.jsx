@@ -59,6 +59,46 @@ const Field = ({ label, field, type = "text", obj, setObj }) => (
   </div>
 );
 
+// ── Formulario de Evento — A NIVEL DE MÓDULO para evitar re-mount en cada render ──
+const EventoForm = ({ obj, setObj, onSave, onCancel, title, saveLabel }) => (
+  <div className="glass-panel rounded-2xl p-6 border border-neon-purple/30 mb-6">
+    <h3 className="font-orbitron text-sm font-bold text-neon-purple mb-5 uppercase">{title}</h3>
+    <div className="grid grid-cols-2 gap-4 mb-4">
+      <Field label="Nombre *"        field="nombre"      obj={obj} setObj={setObj} />
+      <Field label="DJ / Artista"    field="dj"          obj={obj} setObj={setObj} />
+      <Field label="Fecha *"         field="fecha"       type="date"   obj={obj} setObj={setObj} />
+      <Field label="Hora (HH:MM)"    field="hora"        type="time"   obj={obj} setObj={setObj} />
+      <Field label="Precio (COP) *"  field="precio"      type="number" obj={obj} setObj={setObj} />
+      <div>
+        <label className="text-xs text-gray-400 uppercase tracking-widest mb-1 block">Tag</label>
+        <select
+          value={obj.tag ?? ""}
+          onChange={e => setObj(p => ({ ...p, tag: e.target.value }))}
+          className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-neon-purple"
+        >
+          {TAG_OPTIONS.map(t => <option key={t} value={t}>{TAG_LABELS[t]}</option>)}
+        </select>
+      </div>
+      <div className="col-span-2">
+        <Field label="URL de imagen"  field="imagen_url"  obj={obj} setObj={setObj} />
+      </div>
+      <div className="col-span-2">
+        <label className="text-xs text-gray-400 uppercase tracking-widest mb-1 block">Descripción</label>
+        <textarea
+          value={obj.descripcion ?? ""}
+          onChange={e => setObj(p => ({ ...p, descripcion: e.target.value }))}
+          rows={2}
+          className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-neon-purple resize-none"
+        />
+      </div>
+    </div>
+    <div className="flex gap-3">
+      <button onClick={onSave}   className="px-6 py-2.5 bg-neon-purple text-black font-black rounded-xl hover:bg-neon-magenta transition-all text-sm uppercase">{saveLabel}</button>
+      <button onClick={onCancel} className="px-6 py-2.5 bg-white/5 border border-white/10 text-gray-400 rounded-xl hover:bg-white/10 text-sm">Cancelar</button>
+    </div>
+  </div>
+);
+
 // ── Sección: Overview ─────────────────────────────────────────────────────────
 function OverviewSection() {
   const [stats, setStats] = useState({ users: 0, songs: 0, reservations: 0, products: 0 });
@@ -150,9 +190,7 @@ function UsersSection() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const token = localStorage.getItem("neon_token");
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token }, transports: ["websocket", "polling"] });
+    const socket = io(SOCKET_URL, { withCredentials: true, transports: ["websocket", "polling"] });
     socketRef.current = socket;
     socket.on("actualizarUsuarios", () => load());
     return () => { socket.disconnect(); socketRef.current = null; };
@@ -291,22 +329,28 @@ function InventorySection() {
 
   // Sincronización en tiempo real con rol inventario
   useEffect(() => {
-    const token = localStorage.getItem("neon_token");
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token }, transports: ["websocket", "polling"] });
+    const socket = io(SOCKET_URL, { withCredentials: true, transports: ["websocket", "polling"] });
     socketRef.current = socket;
     socket.on("actualizarProductos", () => load());
     return () => { socket.disconnect(); socketRef.current = null; };
   }, [load]);
 
   const save = async () => {
+    const target = editing || form;
+    if (!target.nombre_produc?.trim() || !target.presentacion_produc?.trim()) {
+      notify("err", "Nombre y presentación son obligatorios"); return;
+    }
+    const precio = Number(target.precio_produc);
+    const stock  = Number(target.stock);
+    if (isNaN(precio) || precio <= 0) { notify("err", "El precio debe ser un número mayor a 0"); return; }
+    if (isNaN(stock)  || stock  <  0) { notify("err", "El stock debe ser un número mayor o igual a 0"); return; }
     try {
       if (editing) {
         await api.put(`/productos/${editing.cod_producto}`, {
           nombre_produc: editing.nombre_produc,
           presentacion_produc: editing.presentacion_produc,
-          precio_produc: Number(editing.precio_produc),
-          stock: Number(editing.stock),
+          precio_produc: precio,
+          stock,
         });
         setEditing(null);
         notify("ok", "Producto actualizado");
@@ -314,9 +358,9 @@ function InventorySection() {
         await api.post("/productos", {
           nombre_produc: form.nombre_produc,
           presentacion_produc: form.presentacion_produc,
-          precio_produc: Number(form.precio_produc),
-          stock: Number(form.stock),
-          cantidad: Number(form.stock),
+          precio_produc: precio,
+          stock,
+          cantidad: stock,
         });
         setAdding(false);
         setForm({ nombre_produc: "", presentacion_produc: "", precio_produc: "", stock: "" });
@@ -352,12 +396,20 @@ function InventorySection() {
         <div className="glass-panel rounded-2xl p-6 border border-neon-purple/30 mb-6">
           <h3 className="font-orbitron text-sm font-bold text-neon-purple mb-4 uppercase">{editing ? "Editar Producto" : "Nuevo Producto"}</h3>
           <div className="grid grid-cols-2 gap-4">
-            {["nombre_produc","presentacion_produc","precio_produc","stock"].map(k => (
-              <input key={k} placeholder={k.replace(/_/g," ")}
-                value={editing ? editing[k] : form[k]}
-                onChange={e => editing ? setEditing(p => ({...p,[k]:e.target.value})) : setForm(p => ({...p,[k]:e.target.value}))}
-                className="bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon-purple"
-              />
+            {[
+              { k:"nombre_produc",        label:"Nombre del producto *",         type:"text"   },
+              { k:"presentacion_produc",  label:"Presentación (ej: Botella) *",  type:"text"   },
+              { k:"precio_produc",        label:"Precio unitario (COP) *",       type:"number" },
+              { k:"stock",               label:"Stock disponible *",             type:"number" },
+            ].map(({ k, label, type }) => (
+              <div key={k}>
+                <label className="text-xs text-gray-400 uppercase tracking-widest mb-1 block">{label}</label>
+                <input type={type} min={type==="number"?0:undefined} placeholder={label.replace(" *","")}
+                  value={editing ? editing[k] : form[k]}
+                  onChange={e => editing ? setEditing(p => ({...p,[k]:e.target.value})) : setForm(p => ({...p,[k]:e.target.value}))}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon-purple"
+                />
+              </div>
             ))}
           </div>
           <div className="flex gap-3 mt-4">
@@ -425,9 +477,7 @@ function SalesSection() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const token = localStorage.getItem("neon_token");
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token }, transports: ["websocket", "polling"] });
+    const socket = io(SOCKET_URL, { withCredentials: true, transports: ["websocket", "polling"] });
     socketRef.current = socket;
     socket.on("actualizarVentas", () => load());
     return () => { socket.disconnect(); socketRef.current = null; };
@@ -486,20 +536,54 @@ function SalesSection() {
 
 // ── Sección: Reservas ─────────────────────────────────────────────────────────
 function ReservationsSection() {
-  const [reservas, setReservas] = useState([]);
-  const [loading,  setLoading]  = useState(true);
+  const [reservas,  setReservas]  = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [acting,    setActing]     = useState(null);
+  const [msg,       setMsg]        = useState(null);
 
-  useEffect(() => {
+  const notify = (type, text) => { setMsg({ type, text }); setTimeout(() => setMsg(null), 3500); };
+
+  const load = () => {
+    setLoading(true);
     api.get("/reservas").then(({ data }) => {
       if (data.success) setReservas(data.data);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const updateEstado = async (id, estado) => {
+    setActing(id);
+    try {
+      await api.put(`/reservas/${id}`, { estado });
+      notify("ok", `Reserva ${estado.toLowerCase()} ✓`);
+      load();
+    } catch { notify("err", "Error al actualizar"); }
+    finally { setActing(null); }
+  };
+
+  const deleteReserva = async (id) => {
+    if (!window.confirm("¿Eliminar esta reserva permanentemente?")) return;
+    setActing(id);
+    try {
+      await api.delete(`/reservas/${id}`);
+      notify("ok", "Reserva eliminada ✓");
+      load();
+    } catch { notify("err", "Error al eliminar"); }
+    finally { setActing(null); }
+  };
 
   const STATUS_COLOR = { Confirmada: "text-green-400 border-green-400/30", Pendiente: "text-yellow-400 border-yellow-400/30", Cancelada: "text-red-400 border-red-400/30" };
 
   return (
     <div>
       <h2 className="font-orbitron font-black text-3xl text-white mb-8 uppercase tracking-widest">Reservas</h2>
+
+      {msg && (
+        <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-bold border ${msg.type==="ok" ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
+          {msg.text}
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-3">{[...Array(5)].map((_,i) => <div key={i} className="h-16 bg-white/5 rounded-xl animate-pulse" />)}</div>
@@ -517,6 +601,26 @@ function ReservationsSection() {
               {r.mesa?.tipo_mesa === "VIP" && (
                 <span className="text-xs font-bold px-3 py-1 rounded-full border text-neon-magenta border-neon-magenta/30">VIP</span>
               )}
+              <div className="flex gap-2">
+                {r.estado === "Pendiente" && (
+                  <>
+                    <button onClick={() => updateEstado(r.id_reserva, "Confirmada")} disabled={acting === r.id_reserva}
+                      className="p-2 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50" title="Confirmar">
+                      <Icon d={ICONS.check} className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => updateEstado(r.id_reserva, "Cancelada")} disabled={acting === r.id_reserva}
+                      className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50" title="Cancelar">
+                      <Icon d={ICONS.x} className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+                {r.estado === "Cancelada" && (
+                  <button onClick={() => deleteReserva(r.id_reserva)} disabled={acting === r.id_reserva}
+                    className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50" title="Eliminar">
+                    <Icon d={ICONS.trash} className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           {reservas.length === 0 && <p className="text-gray-500 text-center py-8">Sin reservas registradas</p>}
@@ -529,8 +633,21 @@ function ReservationsSection() {
 // ── Sección: Música (DJ) ──────────────────────────────────────────────────────
 function MusicSection() {
   const { queue, loading, playSong, markPlayed, rejectSong, restoreSong, refetch } = useSongs();
+  const [deleting, setDeleting] = useState(null);
 
   useEffect(() => { refetch(); }, [refetch]);
+
+  const deleteSong = async (id) => {
+    setDeleting(id);
+    try { await api.delete(`/canciones/${id}`); } catch { /* ignore */ }
+    finally { setDeleting(null); }
+  };
+
+  const clearRejected = async () => {
+    const rejected = queue.filter(s => s.status === "rejected");
+    await Promise.all(rejected.map(s => api.delete(`/canciones/${s.id}`).catch(() => {})));
+    refetch();
+  };
 
   const STATUS_STYLE = {
     playing:  "text-neon-purple border-neon-purple/40 bg-neon-purple/10",
@@ -539,14 +656,22 @@ function MusicSection() {
     rejected: "text-red-400 border-red-400/30 bg-red-500/5",
   };
   const STATUS_LABEL = { playing: "Reproduciendo", queued: "En cola", played: "Reproducida", rejected: "Rechazada" };
+  const hasRejected  = queue.some(s => s.status === "rejected");
 
   return (
     <div>
       <div className="flex justify-between items-center mb-8">
         <h2 className="font-orbitron font-black text-3xl text-white uppercase tracking-widest">Cola de Música</h2>
-        <button onClick={refetch} className="px-4 py-2 bg-white/5 border border-white/10 text-gray-400 rounded-xl text-sm hover:text-white hover:bg-white/10 transition-all">
-          Actualizar
-        </button>
+        <div className="flex gap-2">
+          {hasRejected && (
+            <button onClick={clearRejected} className="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm hover:bg-red-500/20 transition-all">
+              Limpiar rechazadas
+            </button>
+          )}
+          <button onClick={refetch} className="px-4 py-2 bg-white/5 border border-white/10 text-gray-400 rounded-xl text-sm hover:text-white hover:bg-white/10 transition-all">
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -591,10 +716,16 @@ function MusicSection() {
                   </button>
                 )}
                 {(song.status === "played" || song.status === "rejected") && (
-                  <button onClick={() => restoreSong(song.id)} title="Restaurar a cola"
-                    className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-all">
-                    <Icon d={ICONS.restore} className="w-4 h-4" />
-                  </button>
+                  <>
+                    <button onClick={() => restoreSong(song.id)} title="Restaurar a cola"
+                      className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-all">
+                      <Icon d={ICONS.restore} className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => deleteSong(song.id)} title="Eliminar" disabled={deleting === song.id}
+                      className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-50">
+                      <Icon d={ICONS.trash} className="w-4 h-4" />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -634,9 +765,7 @@ function EventosSection() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const token = localStorage.getItem("neon_token");
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token }, transports: ["websocket", "polling"] });
+    const socket = io(SOCKET_URL, { withCredentials: true, transports: ["websocket", "polling"] });
     socketRef.current = socket;
     socket.on("actualizarEventos", () => load());
     return () => { socket.disconnect(); socketRef.current = null; };
@@ -668,49 +797,6 @@ function EventosSection() {
     try { await api.delete(`/eventos/${id}`); notify("ok", "Evento eliminado"); load(); }
     catch (e) { notify("err", e.response?.data?.message || e.message); }
   };
-
-  // Subformulario de campos (reutilizado para nuevo y edición)
-  const EventoForm = ({ obj, setObj, onSave, onCancel, title, saveLabel }) => (
-    <div className="glass-panel rounded-2xl p-6 border border-neon-purple/30 mb-6">
-      <h3 className="font-orbitron text-sm font-bold text-neon-purple mb-5 uppercase">{title}</h3>
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <Field label="Nombre *"        field="nombre"      obj={obj} setObj={setObj} />
-        <Field label="DJ / Artista"    field="dj"          obj={obj} setObj={setObj} />
-        <Field label="Fecha *"         field="fecha"       type="date"   obj={obj} setObj={setObj} />
-        <Field label="Hora (HH:MM)"    field="hora"        type="time"   obj={obj} setObj={setObj} />
-        <Field label="Precio (COP) *"  field="precio"      type="number" obj={obj} setObj={setObj} />
-
-        {/* Tag como select */}
-        <div>
-          <label className="text-xs text-gray-400 uppercase tracking-widest mb-1 block">Tag</label>
-          <select
-            value={obj.tag ?? ""}
-            onChange={e => setObj(p => ({ ...p, tag: e.target.value }))}
-            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-neon-purple"
-          >
-            {TAG_OPTIONS.map(t => <option key={t} value={t}>{TAG_LABELS[t]}</option>)}
-          </select>
-        </div>
-
-        <div className="col-span-2">
-          <Field label="URL de imagen"  field="imagen_url"  obj={obj} setObj={setObj} />
-        </div>
-        <div className="col-span-2">
-          <label className="text-xs text-gray-400 uppercase tracking-widest mb-1 block">Descripción</label>
-          <textarea
-            value={obj.descripcion ?? ""}
-            onChange={e => setObj(p => ({ ...p, descripcion: e.target.value }))}
-            rows={2}
-            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-neon-purple resize-none"
-          />
-        </div>
-      </div>
-      <div className="flex gap-3">
-        <button onClick={onSave}  className="px-6 py-2.5 bg-neon-purple text-black font-black rounded-xl hover:bg-neon-magenta transition-all text-sm uppercase">{saveLabel}</button>
-        <button onClick={onCancel} className="px-6 py-2.5 bg-white/5 border border-white/10 text-gray-400 rounded-xl hover:bg-white/10 text-sm">Cancelar</button>
-      </div>
-    </div>
-  );
 
   return (
     <div>
@@ -870,9 +956,7 @@ function HorariosSection() {
 
   // Socket en tiempo real
   useEffect(() => {
-    const token = localStorage.getItem("neon_token");
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token }, transports: ["websocket","polling"] });
+    const socket = io(SOCKET_URL, { withCredentials: true, transports: ["websocket","polling"] });
     socket.on("actualizarHorarios", () => { if (selectedDoc) loadHorarios(selectedDoc); });
     return () => socket.disconnect();
   }, [selectedDoc, loadHorarios]);

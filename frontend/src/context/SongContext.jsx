@@ -1,5 +1,5 @@
 // src/context/SongContext.jsx
-// Conectado a Socket.io + API real del backend
+// Conectado a Socket.io + API real del backend, todo listo :)
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
@@ -66,14 +66,10 @@ export function SongProvider({ children }) {
 
   // ── Socket.io ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    const token = localStorage.getItem("neon_token");
-    if (!token) return;
-
-    // Solo carga la cola si hay token
     fetchQueue();
 
     const socket = io(SOCKET_URL, {
-      auth: { token },
+      withCredentials: true,
       transports: ["websocket", "polling"],
     });
     socketRef.current = socket;
