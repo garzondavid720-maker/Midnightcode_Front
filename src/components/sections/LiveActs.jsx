@@ -81,7 +81,7 @@ export default function LiveActs() {
               Live Acts
             </h3>
           </div>
-          <Link to="/register">
+          <Link to="/login">
             <button className="text-white border-b border-primary pb-1 font-bold uppercase tracking-widest hover:text-primary transition-all">
               Ver Cartelera Completa →
             </button>

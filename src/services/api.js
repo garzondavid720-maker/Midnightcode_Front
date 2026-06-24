@@ -1,25 +1,17 @@
-// src/services/api.js
 import axios from "axios";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
   timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-  // withCredentials: true envía las cookies httpOnly automáticamente
-  // SEGURIDAD: El token está protegido en la cookie httpOnly, no en JS
+  headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
 
-// Request interceptor: no es necesario añadir token
-// El navegador envía automáticamente la cookie httpOnly gracias a withCredentials: true
 api.interceptors.request.use(
   (config) => config,
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: errores con mensajes amigables + log técnico
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -28,7 +20,6 @@ api.interceptors.response.use(
     const url = error.config?.url;
     const method = error.config?.method?.toUpperCase();
 
-    // Log técnico detallado (solo en consola del desarrollador)
     console.group(`Error ${status || "NETWORK"} en ${method} ${url}`);
     console.error("Detalle técnico:", originalMessage);
     console.error("Configuración:", error.config);
@@ -37,7 +28,6 @@ api.interceptors.response.use(
     }
     console.groupEnd();
 
-    // Mensaje amigable para el usuario
     let userMessage = "Ocurrió un error inesperado. Intenta de nuevo.";
 
     if (!error.response) {
@@ -50,7 +40,6 @@ api.interceptors.response.use(
         case 401:
           userMessage = "Debes iniciar sesión para continuar.";
           localStorage.removeItem("neon_user");
-          // Avoid redirect loop — don't redirect if already on a public route
           if (!/^\/(login|register|forgot-password)(\/|$)/.test(window.location.pathname)) {
             window.location.href = "/login";
           }

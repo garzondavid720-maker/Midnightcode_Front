@@ -146,12 +146,12 @@ export default function Hero() {
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link to="/register">
+          <Link to="/login">
             <button className="bg-primary hover:bg-primary/90 active:scale-95 text-white px-10 py-4 rounded-xl font-black text-base uppercase tracking-wide neon-glow transition-all duration-200">
               Reservar VIP
             </button>
           </Link>
-          <Link to="/register">
+          <Link to="/login">
             <button className="glass border border-white/10 hover:border-primary/40 hover:bg-primary/10 active:scale-95 text-white px-10 py-4 rounded-xl font-black text-base uppercase tracking-wide transition-all duration-200">
               Pedir Canción
             </button>

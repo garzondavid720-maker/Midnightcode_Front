@@ -1,7 +1,4 @@
-/**
- * src/context/AuthContext.jsx
- */
-
+// src/context/AuthContext.jsx
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import {
   loginRequest,
@@ -11,6 +8,7 @@ import {
   getStoredUser,
 } from "../services/authService";
 import api from "../services/api";
+import { getRoleName } from "../utils/roleUtils"; // lo crearemos después
 
 const AuthContext = createContext(null);
 
@@ -24,7 +22,6 @@ export const roleRedirect = (role) => {
   }
 };
 
-// Spinner de carga mientras se valida el rol desde el backend
 function InitSpinner() {
   return (
     <div style={{
@@ -41,13 +38,17 @@ function InitSpinner() {
 }
 
 export function AuthProvider({ children }) {
-  const [user,         setUser]         = useState(() => getStoredUser());
+  const [user,         setUser]         = useState(() => {
+    const stored = getStoredUser();
+    if (stored) {
+      // Normalizar rol si es número
+      const roleName = typeof stored.role === 'number' ? getRoleName(stored.role) : stored.role;
+      if (roleName) stored.role = roleName;
+    }
+    return stored;
+  });
   const [authError,    setAuthError]    = useState(null);
   const [loading,      setLoading]      = useState(false);
-
-  // initializing = true mientras verificamos si hay sesión activa.
-  // El token se envía automáticamente como httpOnly cookie, así que solo
-  // necesitamos verificar si el user data está en localStorage.
   const [initializing, setInitializing] = useState(() => !!getStoredUser());
 
   useEffect(() => {
@@ -56,33 +57,46 @@ export function AuthProvider({ children }) {
       setInitializing(false);
       return;
     }
+    setInitializing(false);
 
     // Verificar que la cookie del servidor sigue siendo válida
-    api.get("/auth/me")
-      .then(({ data }) => {
-        if (data.success) {
-          localStorage.setItem("neon_user", JSON.stringify(data.user));
-          setUser(data.user);
-        }
-      })
-      .catch(() => {
-        // Cookie expirada o inválida → limpiar sesión local
-        localStorage.removeItem("neon_user");
-        setUser(null);
-      })
-      .finally(() => {
-        setInitializing(false);
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // api.get("/auth/me")
+    //   .then(({ data }) => {
+    //     if (data.success) {
+    //       const userData = data.user;
+    //       // Normalizar rol a nombre
+    //       const roleName = typeof userData.role === 'number' ? getRoleName(userData.role) : userData.role;
+    //       if (roleName) userData.role = roleName;
+    //       localStorage.setItem("neon_user", JSON.stringify(userData));
+    //       setUser(userData);
+    //     }
+    //   })
+    //   .catch(() => {
+    //     localStorage.removeItem("neon_user");
+    //     setUser(null);
+    //   })
+    //   .finally(() => {
+    //     setInitializing(false);
+    //   });
   }, []);
 
   const login = useCallback(async ({ email, password }) => {
     setAuthError(null);
     setLoading(true);
     try {
-      const { user: apiUser } = await loginRequest({ email, password });
-      setUser(apiUser);
-      return { success: true, role: apiUser.role };
+      const result = await loginRequest({ email, password });
+      if (result.success) {
+        // Normalizar rol a nombre
+        const roleName = typeof result.role === 'number' ? getRoleName(result.role) : result.role;
+        const userData = {
+          ...result.user,
+          role: roleName,
+        };
+        setUser(userData);
+        localStorage.setItem("neon_user", JSON.stringify(userData));
+        return { success: true, role: roleName };
+      }
+      return { success: false, error: "Error desconocido" };
     } catch (err) {
       const msg = err.message || "Error al iniciar sesión";
       setAuthError(msg);
@@ -96,9 +110,18 @@ export function AuthProvider({ children }) {
     setAuthError(null);
     setLoading(true);
     try {
-      const { user: apiUser } = await registerRequest({ docId, name, email, phone, password });
-      setUser(apiUser);
-      return { success: true, role: apiUser.role };
+      const result = await registerRequest({ docId, name, email, phone, password });
+      if (result.success) {
+        const roleName = typeof result.role === 'number' ? getRoleName(result.role) : result.role;
+        const userData = {
+          ...result.user,
+          role: roleName,
+        };
+        setUser(userData);
+        localStorage.setItem("neon_user", JSON.stringify(userData));
+        return { success: true, role: roleName };
+      }
+      return { success: false, error: "Error desconocido" };
     } catch (err) {
       const msg = err.message || "Error al registrar la cuenta";
       setAuthError(msg);
@@ -112,9 +135,18 @@ export function AuthProvider({ children }) {
     setAuthError(null);
     setLoading(true);
     try {
-      const { user: apiUser } = await googleLoginRequest(idToken);
-      setUser(apiUser);
-      return { success: true, role: apiUser.role };
+      const result = await googleLoginRequest(idToken);
+      if (result.success) {
+        const roleName = typeof result.role === 'number' ? getRoleName(result.role) : result.role;
+        const userData = {
+          ...result.user,
+          role: roleName,
+        };
+        setUser(userData);
+        localStorage.setItem("neon_user", JSON.stringify(userData));
+        return { success: true, role: roleName };
+      }
+      return { success: false, error: "Error desconocido" };
     } catch (err) {
       const msg = err.message || "Error al iniciar sesión con Google";
       setAuthError(msg);
@@ -145,7 +177,6 @@ export function AuthProvider({ children }) {
 
   const clearError = useCallback(() => setAuthError(null), []);
 
-  // Bloquear render hasta que sepamos el rol real desde el backend
   if (initializing) return <InitSpinner />;
 
   return (

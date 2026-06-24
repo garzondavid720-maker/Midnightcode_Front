@@ -1,12 +1,8 @@
+// src/components/Auth/PrivateRoute.jsx
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth, roleRedirect } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
+import { hasRole, roleRedirect } from "../../utils/roleUtils";
 
-/**
- * PrivateRoute
- * - Redirects to /login if not authenticated
- * - role can be a string or array of strings
- * - Redirects to the correct portal for the user's role if they hit a wrong route
- */
 export default function PrivateRoute({ children, role }) {
   const { user } = useAuth();
   const location = useLocation();
@@ -17,8 +13,7 @@ export default function PrivateRoute({ children, role }) {
 
   if (role) {
     const allowed = Array.isArray(role) ? role : [role];
-    if (!allowed.includes(user.role)) {
-      // Redirigir al portal correcto según el rol actual (no siempre /dashboard)
+    if (!hasRole(user, allowed)) {
       return <Navigate to={roleRedirect(user.role)} replace />;
     }
   }
