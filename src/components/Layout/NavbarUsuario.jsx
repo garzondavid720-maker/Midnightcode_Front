@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const NavbarUsuario = ({ onCartToggle, cartCount = 0 }) => {
   const [currentPath, setCurrentPath] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownView, setDropdownView] = useState("menu");
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const [usuarioNombre, setUsuarioNombre] = useState("Usuario");
-
-  useEffect(() => {
-    const nombre = sessionStorage.getItem("usuarioNombre") || "Usuario";
-    setUsuarioNombre(nombre);
-  }, []);
+  // Obtener nombre del usuario desde el contexto
+  const usuarioNombre = user?.name || user?.nombre_usu || "Usuario";
 
   useEffect(() => {
     setCurrentPath(window.location.pathname);
@@ -45,6 +45,12 @@ const NavbarUsuario = ({ onCartToggle, cartCount = 0 }) => {
     setDropdownView("menu");
   };
 
+  const handleLogout = async () => {
+    await logout(); // limpia contexto y localStorage
+    closeDropdown();
+    navigate("/");
+  };
+
   const renderDropdownContent = () => {
     switch (dropdownView) {
       case "perfil":
@@ -64,8 +70,13 @@ const NavbarUsuario = ({ onCartToggle, cartCount = 0 }) => {
               </div>
             </div>
             <div className="text-sm text-on-surface-variant">
-              <p><span className="text-primary">Email:</span> {sessionStorage.getItem("usuarioEmail") || "usuario@midnightcode.com"}</p>
-              <p><span className="text-primary">Rol:</span> Cliente</p>
+              <p>
+                <span className="text-primary">Email:</span>{" "}
+                {user?.email || user?.correo_usu || "usuario@midnightcode.com"}
+              </p>
+              <p>
+                <span className="text-primary">Rol:</span> {user?.role || "Cliente"}
+              </p>
             </div>
             <button
               onClick={() => setDropdownView("menu")}
@@ -117,14 +128,13 @@ const NavbarUsuario = ({ onCartToggle, cartCount = 0 }) => {
               <span className="font-label-md text-on-surface">Notificaciones</span>
             </button>
             <hr className="border-white/10 my-1" />
-            <a
-              href="/"
+            <button
+              onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors text-left"
-              onClick={closeDropdown}
             >
               <span className="material-symbols-outlined text-error">logout</span>
               <span className="font-label-md text-on-surface">Cerrar sesión</span>
-            </a>
+            </button>
           </div>
         );
     }

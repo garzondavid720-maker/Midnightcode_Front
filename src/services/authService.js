@@ -1,17 +1,21 @@
 // src/services/authService.js
-import publicApi from "./publicApi";
-import api from "./api";
+
+// Credenciales de prueba locales
+const TEST_USERS = {
+  'admin@club.com': { password: 'admin123', role: 1, name: 'Admin' },
+  'user@club.com': { password: 'user123', role: 3, name: 'Usuario' },
+  'dj@club.com': { password: 'dj123', role: 4, name: 'DJ' },
+  'empleado@club.com': { password: 'empleado123', role: 2, name: 'Empleado' },
+};
 
 // ── Almacenar usuario en localStorage ──────────────────────────────────────
-const storeUserData = (token, rol, userData = null) => {
+const storeUserData = (token, role, userData = null) => {
   if (token) localStorage.setItem('token', token);
   
-  // Construir objeto de usuario basado en la respuesta del backend
   const user = userData || {
-    role: rol,
-    doc_identidad: null,
-    nombre_usu: null,
-    correo_usu: null
+    role: role,
+    name: null,
+    email: null
   };
   
   localStorage.setItem('neon_user', JSON.stringify(user));
@@ -25,163 +29,95 @@ const clearUserData = () => {
   localStorage.removeItem('user');
 };
 
-// ── Obtener usuario almacenado (usado en AuthContext) ────────────────────
+// ── Obtener usuario almacenado ──────────────────────────────────────────────
 export const getStoredUser = () => {
   try {
-    // Intentar obtener de neon_user primero
-    const neonUser = localStorage.getItem('neon_user');
-    if (neonUser && neonUser !== 'undefined') {
-      const parsed = JSON.parse(neonUser);
-      if (parsed && parsed.role) return parsed;
-    }
-    
-    // Fallback a user
-    const userStr = localStorage.getItem('user');
+    const userStr = localStorage.getItem('neon_user') || localStorage.getItem('user');
     if (userStr && userStr !== 'undefined') {
       const parsed = JSON.parse(userStr);
       if (parsed && parsed.role) return parsed;
     }
-    
     return null;
-  } catch (error) {
-    console.error('Error al obtener usuario almacenado:', error);
+  } catch {
     return null;
   }
 };
 
-// ── LOGIN ──────────────────────────────────────────────────────────────────
-export const loginRequest = async (credentials) => {
-  try {
-    // El backend espera { correo, password }
-    const response = await publicApi.post("/auth/login", {
-      correo: credentials.email,
-      password: credentials.password
-    });
-    
-    const data = response.data;
-    // Respuesta esperada: { success: true, token, rol }
-    
-    if (!data.success || !data.token) {
-      throw new Error(data.message || "Error en el login");
-    }
-    
-    // Guardar token y rol
-    storeUserData(data.token, data.rol);
-    
-    // Devolver en el formato que espera AuthContext
-    return { 
-      success: true, 
-      user: {
-        role: data.rol,  // El contexto normalizará a nombre
-        doc_identidad: null,
-        nombre_usu: null,
-        correo_usu: credentials.email
-      },
-      token: data.token,
-      role: data.rol
+// ── LOGIN (solo local) ──────────────────────────────────────────────────────
+export const loginRequest = async ({ email, password }) => {
+  // Buscar usuario en credenciales locales
+  const testUser = TEST_USERS[email];
+  if (testUser && testUser.password === password) {
+    const userData = {
+      id: Date.now(),
+      name: testUser.name,
+      email: email,
+      role: testUser.role,
     };
-  } catch (error) {
-    const errorMessage = error.response?.data?.message || error.message || "Error en login";
-    throw new Error(errorMessage);
+    const token = 'fake-jwt-token-' + Date.now();
+    storeUserData(token, testUser.role, userData);
+    return {
+      success: true,
+      token: token,
+      user: userData,
+      role: testUser.role,
+    };
   }
+  
+  // Si no coincide, error
+  throw new Error('Credenciales inválidas. Prueba con: admin@club.com / admin123');
 };
 
-// ── REGISTER ────────────────────────────────────────────────────────────────
+// ── REGISTER (local) ──────────────────────────────────────────────────────
 export const registerRequest = async ({ docId, name, email, phone, password }) => {
-  try {
-    const response = await publicApi.post("/usuario/register", {
-      doc_identidad: docId,
-      nombre_usu: name,
-      telefono_usu: phone,
-      correo_usu: email,
-      password_usu: password
-    });
-    
-    const data = response.data;
-    
-    // Después del registro, hacer login automático
-    const loginResponse = await loginRequest({ email, password });
-    
-    return loginResponse;
-  } catch (error) {
-    const errorMessage = error.response?.data?.message || error.message || "Error en registro";
-    throw new Error(errorMessage);
-  }
+  // Simular registro local
+  const newUser = {
+    id: Date.now(),
+    name: name,
+    email: email,
+    role: 3, // usuario por defecto
+  };
+  const token = 'fake-jwt-token-' + Date.now();
+  storeUserData(token, 3, newUser);
+  return {
+    success: true,
+    token: token,
+    user: newUser,
+    role: 3,
+  };
 };
 
 // ── LOGOUT ──────────────────────────────────────────────────────────────────
 export const logoutRequest = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        await api.post("/auth/logout");
-      } catch (err) {
-        console.warn("Error en logout del backend:", err.message);
-      }
-    }
-  } finally {
-    clearUserData();
-  }
+  clearUserData();
+  return { success: true };
 };
 
 // ── GOOGLE LOGIN ──────────────────────────────────────────────────────────
 export const googleLoginRequest = async (idToken) => {
-  try {
-    const response = await publicApi.post("/auth/google", { idToken });
-    const data = response.data;
-    if (!data.success || !data.token) {
-      throw new Error(data.message || "Error en login con Google");
-    }
-    storeUserData(data.token, data.rol);
-    return {
-      success: true,
-      user: {
-        role: data.rol,
-        doc_identidad: null,
-        nombre_usu: data.nombre || null,
-        correo_usu: data.email || null
-      },
-      token: data.token,
-      role: data.rol
-    };
-  } catch (error) {
-    const errorMessage = error.response?.data?.message || error.message || "Error en login con Google";
-    throw new Error(errorMessage);
-  }
+  // Simular login con Google
+  const userData = {
+    id: Date.now(),
+    name: 'Usuario Google',
+    email: 'google@user.com',
+    role: 3,
+  };
+  const token = 'fake-google-token-' + Date.now();
+  storeUserData(token, 3, userData);
+  return {
+    success: true,
+    token: token,
+    user: userData,
+    role: 3,
+  };
 };
 
 // ── FORGOT PASSWORD ──────────────────────────────────────────────────────
 export const forgotPasswordRequest = async (correo_usu) => {
-  try {
-    const response = await publicApi.post("/auth/forgot-password", { correo_usu });
-    return response.data;
-  } catch (error) {
-    const errorMessage = error.response?.data?.message || error.message || "Error al enviar correo";
-    throw new Error(errorMessage);
-  }
+  return { success: true, message: 'Correo enviado' };
 };
 
 // ── RESET PASSWORD ────────────────────────────────────────────────────────
 export const resetPasswordRequest = async (token, nuevaPassword) => {
-  try {
-    const response = await publicApi.post("/auth/reset-password", { token, nuevaPassword });
-    return response.data;
-  } catch (error) {
-    const errorMessage = error.response?.data?.message || error.message || "Error al restablecer contraseña";
-    throw new Error(errorMessage);
-  }
-};
-
-// ── Exportar también como objeto para mantener compatibilidad ──────────
-export const authService = {
-  login: loginRequest,
-  register: registerRequest,
-  logout: logoutRequest,
-  googleLogin: googleLoginRequest,
-  forgotPassword: forgotPasswordRequest,
-  resetPassword: resetPasswordRequest,
-  getStoredUser: getStoredUser,
-};
-
-export default authService;
+  return { success: true, message: 'Contraseña restablecida' };
+}; 

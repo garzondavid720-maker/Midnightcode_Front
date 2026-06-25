@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const NavbarAdmin = () => {
   const [currentPath, setCurrentPath] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownView, setDropdownView] = useState("menu");
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const [adminNombre, setAdminNombre] = useState("Administrador");
-
-  useEffect(() => {
-    const nombre = sessionStorage.getItem("adminNombre") || "Administrador";
-    setAdminNombre(nombre);
-  }, []);
+  // Obtener nombre del usuario desde el contexto
+  const adminNombre = user?.name || user?.nombre_usu || "Administrador";
 
   useEffect(() => {
     setCurrentPath(window.location.pathname);
@@ -50,6 +50,12 @@ const NavbarAdmin = () => {
     setDropdownView("menu");
   };
 
+  const handleLogout = async () => {
+    await logout(); // limpia contexto y localStorage
+    closeDropdown();
+    navigate("/");
+  };
+
   const renderDropdownContent = () => {
     switch (dropdownView) {
       case "perfil":
@@ -69,8 +75,8 @@ const NavbarAdmin = () => {
               </div>
             </div>
             <div className="text-sm text-on-surface-variant">
-              <p><span className="text-primary">Email:</span> admin@midnightcode.com</p>
-              <p><span className="text-primary">Rol:</span> Super Admin</p>
+              <p><span className="text-primary">Email:</span> {user?.email || user?.correo_usu || "admin@midnightcode.com"}</p>
+              <p><span className="text-primary">Rol:</span> {user?.role || "Admin"}</p>
             </div>
             <button
               onClick={() => setDropdownView("menu")}
@@ -122,14 +128,13 @@ const NavbarAdmin = () => {
               <span className="font-label-md text-on-surface">Notificaciones</span>
             </button>
             <hr className="border-white/10 my-1" />
-            <a
-              href="/"
+            <button
+              onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors text-left"
-              onClick={closeDropdown}
             >
               <span className="material-symbols-outlined text-error">logout</span>
               <span className="font-label-md text-on-surface">Cerrar sesión</span>
-            </a>
+            </button>
           </div>
         );
     }
@@ -253,7 +258,7 @@ const NavbarAdmin = () => {
         </div>
       </nav>
 
-      {/* ===== ESTILOS DE RESPALDO (idénticos a NavbarUsuario) ===== */}
+      {/* ===== ESTILOS DE RESPALDO ===== */}
       <style jsx>{`
         .bg-surface\\/70 {
           background-color: rgba(19, 19, 19, 0.7);

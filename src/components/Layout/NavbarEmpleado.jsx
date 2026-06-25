@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const NavbarEmpleado = ({ active = "" }) => {
   const [currentPath, setCurrentPath] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [dropdownView, setDropdownView] = useState("menu"); // "menu" | "perfil" | "notificaciones"
+  const [dropdownView, setDropdownView] = useState("menu");
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  // Obtener nombre del empleado (de sessionStorage o por defecto)
-  const [empleadoNombre, setEmpleadoNombre] = useState("Empleado");
-
-  useEffect(() => {
-    const nombre = sessionStorage.getItem("empleadoActual") || "Empleado";
-    setEmpleadoNombre(nombre);
-  }, []);
+  // Obtener nombre del empleado desde el contexto
+  const empleadoNombre = user?.name || user?.nombre_usu || "Empleado";
 
   // Detectar ruta actual
   useEffect(() => {
@@ -39,7 +38,6 @@ const NavbarEmpleado = ({ active = "" }) => {
     return currentPath.includes(`/empleado/${path}`);
   };
 
-  // Notificaciones fijas
   const notificaciones = [
     { id: 1, mensaje: "Tu turno ha sido aprobado", tiempo: "hace 5 min" },
     { id: 2, mensaje: "Nuevo mensaje de tu supervisor", tiempo: "hace 2 h" },
@@ -47,13 +45,17 @@ const NavbarEmpleado = ({ active = "" }) => {
     { id: 4, mensaje: "Recuerda confirmar tu disponibilidad", tiempo: "hace 2 días" },
   ];
 
-  // Cerrar dropdown y resetear vista
   const closeDropdown = () => {
     setDropdownOpen(false);
     setDropdownView("menu");
   };
 
-  // Renderizar contenido del dropdown según la vista
+  const handleLogout = async () => {
+    await logout(); // limpia contexto y localStorage
+    closeDropdown();
+    navigate("/");
+  };
+
   const renderDropdownContent = () => {
     switch (dropdownView) {
       case "perfil":
@@ -73,8 +75,8 @@ const NavbarEmpleado = ({ active = "" }) => {
               </div>
             </div>
             <div className="text-sm text-on-surface-variant">
-              <p><span className="text-primary">Documento:</span> {sessionStorage.getItem("empleadoDocumento") || "No especificado"}</p>
-              <p><span className="text-primary">Rol:</span> {sessionStorage.getItem("empleadoRol") || "—"}</p>
+              <p><span className="text-primary">Email:</span> {user?.email || user?.correo_usu || "empleado@midnightcode.com"}</p>
+              <p><span className="text-primary">Rol:</span> {user?.role || "Empleado"}</p>
             </div>
             <button
               onClick={() => setDropdownView("menu")}
@@ -108,7 +110,7 @@ const NavbarEmpleado = ({ active = "" }) => {
             </button>
           </div>
         );
-      default: // menu
+      default:
         return (
           <div className="py-2">
             <button
@@ -126,14 +128,13 @@ const NavbarEmpleado = ({ active = "" }) => {
               <span className="font-label-md text-on-surface">Notificaciones</span>
             </button>
             <hr className="border-white/10 my-1" />
-            <a
-              href="/"
+            <button
+              onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors text-left"
-              onClick={closeDropdown}
             >
               <span className="material-symbols-outlined text-error">logout</span>
               <span className="font-label-md text-on-surface">Cerrar sesión</span>
-            </a>
+            </button>
           </div>
         );
     }
@@ -197,7 +198,6 @@ const NavbarEmpleado = ({ active = "" }) => {
             />
           </button>
 
-          {/* Dropdown menu */}
           {dropdownOpen && (
             <div className="absolute right-0 mt-3 w-72 bg-surface-container/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl z-50 max-h-[500px] overflow-y-auto custom-scrollbar">
               {renderDropdownContent()}

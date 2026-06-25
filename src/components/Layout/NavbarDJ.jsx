@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const NavbarDJ = ({ searchValue = "", onSearchChange = () => {} }) => {
   const [currentPath, setCurrentPath] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [dropdownView, setDropdownView] = useState("menu");
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  const [djNombre, setDjNombre] = useState("DJ");
-
-  useEffect(() => {
-    const nombre = sessionStorage.getItem("djNombre") || "DJ";
-    setDjNombre(nombre);
-  }, []);
+  // Obtener nombre del DJ desde el contexto
+  const djNombre = user?.name || user?.nombre_usu || "DJ";
 
   useEffect(() => {
     setCurrentPath(window.location.pathname);
@@ -43,6 +43,12 @@ const NavbarDJ = ({ searchValue = "", onSearchChange = () => {} }) => {
     setDropdownView("menu");
   };
 
+  const handleLogout = async () => {
+    await logout(); // limpia contexto y localStorage
+    closeDropdown();
+    navigate("/");
+  };
+
   const renderDropdownContent = () => {
     switch (dropdownView) {
       case "perfil":
@@ -62,8 +68,8 @@ const NavbarDJ = ({ searchValue = "", onSearchChange = () => {} }) => {
               </div>
             </div>
             <div className="text-sm text-on-surface-variant">
-              <p><span className="text-primary">Cabina:</span> Principal</p>
-              <p><span className="text-primary">Turno:</span> Nocturno</p>
+              <p><span className="text-primary">Email:</span> {user?.email || user?.correo_usu || "dj@midnightcode.com"}</p>
+              <p><span className="text-primary">Rol:</span> {user?.role || "DJ"}</p>
             </div>
             <button
               onClick={() => setDropdownView("menu")}
@@ -115,14 +121,13 @@ const NavbarDJ = ({ searchValue = "", onSearchChange = () => {} }) => {
               <span className="font-label-md text-on-surface">Notificaciones</span>
             </button>
             <hr className="border-white/10 my-1" />
-            <a
-              href="/"
+            <button
+              onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors text-left"
-              onClick={closeDropdown}
             >
               <span className="material-symbols-outlined text-error">logout</span>
               <span className="font-label-md text-on-surface">Cerrar sesión</span>
-            </a>
+            </button>
           </div>
         );
     }
@@ -184,7 +189,7 @@ const NavbarDJ = ({ searchValue = "", onSearchChange = () => {} }) => {
         </div>
       </nav>
 
-      {/* ===== ESTILOS DE RESPALDO (idénticos a NavbarEmpleado) ===== */}
+      {/* ===== ESTILOS DE RESPALDO ===== */}
       <style jsx>{`
         .bg-surface\\/70 {
           background-color: rgba(19, 19, 19, 0.7);
