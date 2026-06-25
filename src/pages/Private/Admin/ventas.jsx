@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ventaService } from "../../../services/ventaService";
+import NavbarAdmin from "../../../components/Layout/NavbarHeader";
 
 const AdminVentas = () => {
   // ===== ESTADOS =====
@@ -169,7 +170,10 @@ const AdminVentas = () => {
   // ===== RENDER =====
   return (
     <>
-      {/* ===== ESTILOS PERSONALIZADOS (IDÉNTICOS AL HTML) ===== */}
+      {/* ===== NAVBAR ===== */}
+      <NavbarAdmin />
+
+      {/* ===== ESTILOS PERSONALIZADOS (solo los necesarios para el contenido) ===== */}
       <style>{`
         body {
           background-color: #050505;
@@ -205,7 +209,7 @@ const AdminVentas = () => {
           border-radius: 10px;
         }
 
-        /* Clases de color y utilidades */
+        /* Clases de color y utilidades (mapeo) */
         .bg-surface { background-color: #131313; }
         .bg-surface-container { background-color: #201f1f; }
         .bg-surface-container-high { background-color: #2a2a2a; }
@@ -278,8 +282,7 @@ const AdminVentas = () => {
         /* Espaciado */
         .px-margin-mobile { padding-left: 16px; padding-right: 16px; }
         .px-margin-desktop { padding-left: 48px; padding-right: 48px; }
-        .pt-28 { padding-top: 7rem; }
-        .pt-24 { padding-top: 6rem; }
+        .pt-20 { padding-top: 5rem; } /* espacio para el navbar */
         .pb-20 { padding-bottom: 5rem; }
         .gap-gutter { gap: 24px; }
         .gap-base { gap: 8px; }
@@ -316,10 +319,8 @@ const AdminVentas = () => {
         .mb-8 { margin-bottom: 32px; }
         .mb-10 { margin-bottom: 40px; }
 
-        .w-64 { width: 16rem; }
         .w-full { width: 100%; }
         .h-full { height: 100%; }
-        .h-20 { height: 5rem; }
         .h-10 { height: 2.5rem; }
         .h-8 { height: 2rem; }
         .h-14 { height: 3.5rem; }
@@ -490,7 +491,6 @@ const AdminVentas = () => {
         @media (min-width: 768px) {
           .md\\:flex { display: flex; }
           .md\\:hidden { display: none; }
-          .md\\:ml-64 { margin-left: 16rem; }
           .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           .md\\:col-span-2 { grid-column: span 2 / span 2; }
           .md\\:flex-row { flex-direction: row; }
@@ -507,99 +507,8 @@ const AdminVentas = () => {
         }
       `}</style>
 
-      {/* ===== HEADER ===== */}
-      <nav className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-xl border-b border-white/10 shadow-[0_0_20px_rgba(233,179,255,0.1)] h-20 flex justify-between items-center px-margin-desktop">
-        <div className="flex items-center gap-base">
-          <span className="material-symbols-outlined text-primary text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>pulse_alert</span>
-          <span className="font-display-lg text-display-lg text-primary">Afterdark Pulse</span>
-        </div>
-        <div className="hidden md:flex items-center gap-xl">
-          <div className="relative group">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-            <input
-              className="bg-surface-container border-none rounded-full py-2 pl-10 pr-4 text-label-md w-64 focus:ring-2 focus:ring-primary transition-all"
-              placeholder="Buscar transacción..."
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center gap-md">
-            <button className="text-on-surface-variant hover:text-primary transition-colors active:scale-95 duration-200">
-              <span className="material-symbols-outlined">notifications</span>
-            </button>
-            <button className="text-on-surface-variant hover:text-primary transition-colors active:scale-95 duration-150">
-              <span className="material-symbols-outlined">settings</span>
-            </button>
-            <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/40 overflow-hidden">
-              <img
-                className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBjJb0XEaZpy4zZyrmKwv10IXu95M2hwT9h73xCFf40-n4xsxgJO1NI5pNjxdIJ3lXc6Xm2gWklcULvl21BXM2eGpGBWMux3lKocIwVUwJe8f_vzGApPnmhUnvcVzQwj80BwGdZM5LD81Y1xmOaWhIRvpUqyOxrGTb8HSqhKUM71pOy2vVvk6CKKOVv2OdCC4S4U5XeRNIOkp8KSQE1sxICciPJTou8AgAHmzBeqFz0zYj_kWUOQEEUrPGYJAq-Q-jD0l2p2pdbGi-1"
-                alt="avatar"
-              />
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* ===== SIDEBAR ===== */}
-      <aside className="fixed left-0 top-0 h-full w-64 z-40 bg-surface-container/80 backdrop-blur-2xl border-r border-white/10 shadow-xl hidden md:flex flex-col py-lg gap-base pt-28">
-        <div className="px-6 mb-8">
-          <h2 className="text-primary font-headline-lg text-headline-lg tracking-tight">Afterdark Pulse</h2>
-          <p className="text-on-surface-variant font-label-md text-label-md opacity-60">Management Hub</p>
-        </div>
-        <nav className="flex-1 flex flex-col gap-xs px-2 overflow-y-auto custom-scrollbar">
-          <a className="flex items-center gap-sm px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-lg group" href="#">
-            <span className="material-symbols-outlined group-hover:text-primary">dashboard</span>
-            <span className="font-label-md text-label-md">Dashboard</span>
-          </a>
-          <a className="flex items-center gap-sm px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-lg group" href="#">
-            <span className="material-symbols-outlined group-hover:text-primary">monitoring</span>
-            <span className="font-label-md text-label-md">Analytics</span>
-          </a>
-          <a className="flex items-center gap-sm px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-lg group" href="#">
-            <span className="material-symbols-outlined group-hover:text-primary">layers</span>
-            <span className="font-label-md text-label-md">VIP Floor</span>
-          </a>
-          <a className="flex items-center gap-sm px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-lg group" href="#">
-            <span className="material-symbols-outlined group-hover:text-primary">group</span>
-            <span className="font-label-md text-label-md">Users</span>
-          </a>
-          <a className="flex items-center gap-sm px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-lg group" href="#">
-            <span className="material-symbols-outlined group-hover:text-primary">inventory_2</span>
-            <span className="font-label-md text-label-md">Inventory</span>
-          </a>
-          <a className="flex items-center gap-sm px-4 py-3 text-primary border-r-2 border-primary bg-primary/5 transition-all active:translate-x-1 duration-150 rounded-lg group" href="#">
-            <span className="material-symbols-outlined fill">payments</span>
-            <span className="font-label-md text-label-md">Sales</span>
-          </a>
-          <a className="flex items-center gap-sm px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-lg group" href="#">
-            <span className="material-symbols-outlined">event_seat</span>
-            <span className="font-label-md text-label-md">Reservations</span>
-          </a>
-          <a className="flex items-center gap-sm px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-lg group" href="#">
-            <span className="material-symbols-outlined">music_note</span>
-            <span className="font-label-md text-label-md">Music/Songs</span>
-          </a>
-          <a className="flex items-center gap-sm px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-lg group" href="#">
-            <span className="material-symbols-outlined">calendar_today</span>
-            <span className="font-label-md text-label-md">Events/Schedules</span>
-          </a>
-        </nav>
-        <div className="mt-auto px-2 flex flex-col gap-xs pb-6">
-          <a className="flex items-center gap-sm px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all rounded-lg" href="#">
-            <span className="material-symbols-outlined">help</span>
-            <span className="font-label-md text-label-md">Support</span>
-          </a>
-          <a className="flex items-center gap-sm px-4 py-3 text-error hover:bg-error/10 transition-all rounded-lg" href="/home">
-            <span className="material-symbols-outlined">logout</span>
-            <span className="font-label-md text-label-md">Logout</span>
-          </a>
-        </div>
-      </aside>
-
       {/* ===== MAIN CONTENT ===== */}
-      <main className="md:ml-64 pt-28 px-margin-mobile md:px-margin-desktop pb-20 relative">
+      <main className="pt-20 px-margin-mobile md:px-margin-desktop pb-20 min-h-screen">
         <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-md">
           <div>
             <h1 className="font-headline-lg text-headline-lg text-white mb-2">Módulo de Ventas &amp; Cover</h1>

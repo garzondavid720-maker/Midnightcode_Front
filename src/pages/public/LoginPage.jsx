@@ -1,4 +1,5 @@
 // src/pages/public/LoginPage.jsx
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -18,7 +19,7 @@ const schema = yup.object({
 });
 
 export default function LoginPage() {
-  const { login, googleLogin, authError, clearError, loading } = useAuth();
+  const { login, googleLogin, authError, clearError, loading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,10 +27,21 @@ export default function LoginPage() {
     resolver: yupResolver(schema),
   });
 
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const from = location.state?.from?.pathname || '/';
+      navigate(from || roleRedirect(user.role), { replace: true });
+    }
+  }, [isAuthenticated, user, navigate, location]);
+
   const onSubmit = async (data) => {
     clearError();
     const result = await login({ email: data.email, password: data.password });
     if (result.success) {
+      // Guardar en localStorage (el contexto ya debería hacerlo, pero por si acaso)
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('user', JSON.stringify(result.user));
       const from = location.state?.from?.pathname || '/';
       navigate(from || roleRedirect(result.role), { replace: true });
     }
@@ -39,6 +51,8 @@ export default function LoginPage() {
     clearError();
     const result = await googleLogin(credential);
     if (result.success) {
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('user', JSON.stringify(result.user));
       navigate(roleRedirect(result.role), { replace: true });
     }
   };

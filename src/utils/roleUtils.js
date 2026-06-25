@@ -17,15 +17,15 @@ export const getRoleName = (rolCode) => {
 // Redirección según el rol (admite número o nombre)
 export const roleRedirect = (roleOrCode) => {
   let roleName = typeof roleOrCode === 'number' ? getRoleName(roleOrCode) : roleOrCode;
-  if (!roleName) return '/dashboard'; // fallback
+  if (!roleName) return '/'; // fallback a home
 
   const routes = {
     admin: '/admin',
     empleado: '/empleado',
-    usuario: '/dashboard',
+    usuario: '/usuario',
     dj: '/dj',
   };
-  return routes[roleName] || '/dashboard';
+  return routes[roleName] || '/';
 };
 
 // Verificar si un usuario tiene un rol permitido (soporta arrays)

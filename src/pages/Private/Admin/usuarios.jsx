@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { usuarioService } from "../../../services/usuarioService";
+import NavbarAdmin from "../../../components/Layout/NavbarHeader";
 
 const AdminUsuarios = () => {
   // ===== ESTADOS =====
@@ -157,7 +158,10 @@ const AdminUsuarios = () => {
   // ===== RENDER =====
   return (
     <>
-      {/* ===== ESTILOS PERSONALIZADOS (IDÉNTICOS AL HTML) ===== */}
+      {/* ===== NAVBAR ===== */}
+      <NavbarAdmin />
+
+      {/* ===== ESTILOS (solo los que necesita el contenido) ===== */}
       <style>{`
         body {
           background-color: #050505;
@@ -199,7 +203,6 @@ const AdminUsuarios = () => {
           animation: pulse-glow 2s infinite ease-in-out;
         }
 
-        /* Clases de color y utilidades (mapeo de variables) */
         .bg-surface { background-color: #131313; }
         .bg-surface-container { background-color: #201f1f; }
         .bg-surface-container-high { background-color: #2a2a2a; }
@@ -223,30 +226,29 @@ const AdminUsuarios = () => {
         .text-on-error { color: #690005; }
         .border-primary { border-color: #e9b3ff; }
         .border-secondary { border-color: #ffb2b7; }
-        .border-white\\/10 { border-color: rgba(255,255,255,0.1); }
-        .border-white\\/5 { border-color: rgba(255,255,255,0.05); }
-        .bg-white\\/5 { background-color: rgba(255,255,255,0.05); }
-        .bg-white\\/10 { background-color: rgba(255,255,255,0.1); }
-        .bg-primary\\/5 { background-color: rgba(233,179,255,0.05); }
-        .bg-primary\\/10 { background-color: rgba(233,179,255,0.1); }
-        .bg-primary\\/20 { background-color: rgba(233,179,255,0.2); }
-        .bg-secondary\\/10 { background-color: rgba(255,178,183,0.1); }
-        .bg-secondary\\/20 { background-color: rgba(255,178,183,0.2); }
-        .bg-tertiary\\/5 { background-color: rgba(231,196,72,0.05); }
-        .bg-tertiary\\/20 { background-color: rgba(231,196,72,0.2); }
-        .bg-surface-container-highest\\/30 { background-color: rgba(53,53,52,0.3); }
-        .bg-error\\/5 { background-color: rgba(255,180,171,0.05); }
-        .bg-error\\/10 { background-color: rgba(255,180,171,0.1); }
-        .bg-error\\/20 { background-color: rgba(255,180,171,0.2); }
-        .border-error\\/30 { border-color: rgba(255,180,171,0.3); }
-        .border-error\\/20 { border-color: rgba(255,180,171,0.2); }
-        .border-tertiary\\/30 { border-color: rgba(231,196,72,0.3); }
-        .shadow-primary\\/20 { box-shadow: 0 4px 14px rgba(233,179,255,0.2); }
-        .shadow-\\[0_0_8px_\\#ffb2b7\\] { box-shadow: 0 0 8px #ffb2b7; }
-        .shadow-\\[0_0_5px_\\#e9b3ff\\] { box-shadow: 0 0 5px #e9b3ff; }
-        .shadow-\\[0_0_20px_rgba\\(233\\,179\\,255\\,0\\.1\\)\\] { box-shadow: 0 0 20px rgba(233,179,255,0.1); }
+        .border-white/10 { border-color: rgba(255,255,255,0.1); }
+        .border-white/5 { border-color: rgba(255,255,255,0.05); }
+        .bg-white/5 { background-color: rgba(255,255,255,0.05); }
+        .bg-white/10 { background-color: rgba(255,255,255,0.1); }
+        .bg-primary/5 { background-color: rgba(233,179,255,0.05); }
+        .bg-primary/10 { background-color: rgba(233,179,255,0.1); }
+        .bg-primary/20 { background-color: rgba(233,179,255,0.2); }
+        .bg-secondary/10 { background-color: rgba(255,178,183,0.1); }
+        .bg-secondary/20 { background-color: rgba(255,178,183,0.2); }
+        .bg-tertiary/5 { background-color: rgba(231,196,72,0.05); }
+        .bg-tertiary/20 { background-color: rgba(231,196,72,0.2); }
+        .bg-surface-container-highest/30 { background-color: rgba(53,53,52,0.3); }
+        .bg-error/5 { background-color: rgba(255,180,171,0.05); }
+        .bg-error/10 { background-color: rgba(255,180,171,0.1); }
+        .bg-error/20 { background-color: rgba(255,180,171,0.2); }
+        .border-error/30 { border-color: rgba(255,180,171,0.3); }
+        .border-error/20 { border-color: rgba(255,180,171,0.2); }
+        .border-tertiary/30 { border-color: rgba(231,196,72,0.3); }
+        .shadow-primary/20 { box-shadow: 0 4px 14px rgba(233,179,255,0.2); }
+        .shadow-[0_0_8px_#ffb2b7] { box-shadow: 0 0 8px #ffb2b7; }
+        .shadow-[0_0_5px_#e9b3ff] { box-shadow: 0 0 5px #e9b3ff; }
+        .shadow-[0_0_20px_rgba(233,179,255,0.1)] { box-shadow: 0 0 20px rgba(233,179,255,0.1); }
 
-        /* Fuentes y tamaños */
         .font-headline-lg { font-family: 'Montserrat', sans-serif; }
         .font-headline-md { font-family: 'Montserrat', sans-serif; }
         .font-body-md { font-family: 'Inter', sans-serif; }
@@ -261,10 +263,9 @@ const AdminUsuarios = () => {
         .text-stats-number { font-size: 36px; line-height: 44px; font-weight: 700; }
         .text-display-lg { font-size: 48px; line-height: 56px; letter-spacing: -0.02em; font-weight: 800; }
 
-        /* Espaciado */
         .px-margin-mobile { padding-left: 16px; padding-right: 16px; }
         .px-margin-desktop { padding-left: 48px; padding-right: 48px; }
-        .pt-24 { padding-top: 6rem; }
+        .pt-20 { padding-top: 5rem; }
         .pb-xl { padding-bottom: 64px; }
         .gap-gutter { gap: 24px; }
         .gap-base { gap: 8px; }
@@ -292,10 +293,8 @@ const AdminUsuarios = () => {
         .ml-sm { margin-left: 12px; }
         .ml-md { margin-left: 24px; }
 
-        .w-64 { width: 16rem; }
         .w-full { width: 100%; }
         .h-full { height: 100%; }
-        .h-20 { height: 5rem; }
         .h-10 { height: 2.5rem; }
         .h-8 { height: 2rem; }
         .h-14 { height: 3.5rem; }
@@ -326,7 +325,7 @@ const AdminUsuarios = () => {
         .overflow-y-auto { overflow-y: auto; }
         .border-collapse { border-collapse: collapse; }
         .divide-y > * + * { border-top-width: 1px; }
-        .divide-white\\/5 > * + * { border-color: rgba(255,255,255,0.05); }
+        .divide-white/5 > * + * { border-color: rgba(255,255,255,0.05); }
         .space-y-xs > * + * { margin-top: 4px; }
         .space-y-sm > * + * { margin-top: 12px; }
         .space-y-md > * + * { margin-top: 24px; }
@@ -338,20 +337,20 @@ const AdminUsuarios = () => {
         .col-span-4 { grid-column: span 4 / span 4; }
         .row-span-2 { grid-row: span 2 / span 2; }
         .aspect-square { aspect-ratio: 1 / 1; }
-        .bg-black\\/70 { background-color: rgba(0,0,0,0.7); }
+        .bg-black/70 { background-color: rgba(0,0,0,0.7); }
         .backdrop-blur-sm { backdrop-filter: blur(4px); }
         .backdrop-blur-xl { backdrop-filter: blur(16px); }
         .backdrop-blur-2xl { backdrop-filter: blur(40px); }
-        .focus\\:border-primary\\/50:focus { border-color: rgba(233,179,255,0.5); }
+        .focus\\:border-primary/50:focus { border-color: rgba(233,179,255,0.5); }
         .focus\\:ring-0:focus { outline: none; box-shadow: none; }
-        .hover\\:bg-secondary\\/20:hover { background-color: rgba(255,178,183,0.2); }
-        .hover\\:bg-primary\\/10:hover { background-color: rgba(233,179,255,0.1); }
-        .hover\\:bg-white\\/5:hover { background-color: rgba(255,255,255,0.05); }
+        .hover\\:bg-secondary/20:hover { background-color: rgba(255,178,183,0.2); }
+        .hover\\:bg-primary/10:hover { background-color: rgba(233,179,255,0.1); }
+        .hover\\:bg-white/5:hover { background-color: rgba(255,255,255,0.05); }
         .hover\\:bg-surface-variant:hover { background-color: #353534; }
         .hover\\:text-primary:hover { color: #e9b3ff; }
         .hover\\:text-on-surface:hover { color: #e5e2e1; }
-        .hover\\:bg-error\\/10:hover { background-color: rgba(255,180,171,0.1); }
-        .group-hover\\:text-primary\\/10 .group:hover { color: rgba(233,179,255,0.1); }
+        .hover\\:bg-error/10:hover { background-color: rgba(255,180,171,0.1); }
+        .group-hover\\:text-primary/10 .group:hover { color: rgba(233,179,255,0.1); }
         .active\\:translate-x-1:active { transform: translateX(4px); }
         .active\\:scale-95:active { transform: scale(0.95); }
         .bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
@@ -412,24 +411,22 @@ const AdminUsuarios = () => {
         .text-outline { color: #9b8c9e; }
         .text-outline-variant { color: #4f4352; }
         .border-outline-variant { border-color: #4f4352; }
-        .bg-surface-container-highest\\/30 { background-color: rgba(53,53,52,0.3); }
-        .bg-primary\\/30 { background-color: rgba(233,179,255,0.3); }
+        .bg-surface-container-highest/30 { background-color: rgba(53,53,52,0.3); }
+        .bg-primary/30 { background-color: rgba(233,179,255,0.3); }
         .blur-3xl { filter: blur(3rem); }
         .bg-surface-container-low { background-color: #1c1b1b; }
-        .bg-error\\/5 { background-color: rgba(255,180,171,0.05); }
-        .bg-tertiary\\/5 { background-color: rgba(231,196,72,0.05); }
-        .border-error\\/30 { border-color: rgba(255,180,171,0.3); }
-        .border-tertiary\\/30 { border-color: rgba(231,196,72,0.3); }
+        .bg-error/5 { background-color: rgba(255,180,171,0.05); }
+        .bg-tertiary/5 { background-color: rgba(231,196,72,0.05); }
+        .border-error/30 { border-color: rgba(255,180,171,0.3); }
+        .border-tertiary/30 { border-color: rgba(231,196,72,0.3); }
         .filter { filter: var(--tw-filter); }
         .group-hover\\:scale-110:hover .group { transform: scale(1.1); }
         .group-hover\\:scale-110 .group:hover { transform: scale(1.1); }
         .max-h-\\[600px\\] { max-height: 600px; }
 
-        /* responsive */
         @media (min-width: 768px) {
           .md\\:flex { display: flex; }
           .md\\:hidden { display: none; }
-          .md\\:ml-64 { margin-left: 16rem; }
           .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           .md\\:col-span-2 { grid-column: span 2 / span 2; }
           .md\\:flex-row { flex-direction: row; }
@@ -450,76 +447,8 @@ const AdminUsuarios = () => {
         }
       `}</style>
 
-      {/* ===== HEADER ===== */}
-      <header className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-xl text-primary border-b border-white/10 shadow-[0_0_20px_rgba(233,179,255,0.1)] flex justify-between items-center px-margin-desktop h-20">
-        <div className="flex items-center gap-md">
-          <span className="font-display-lg text-display-lg text-primary">Afterdark Pulse</span>
-          <div className="hidden md:flex items-center bg-surface-container-low px-sm py-xs rounded-lg border border-white/5 ml-md">
-            <span className="material-symbols-outlined text-outline mr-xs">search</span>
-            <input
-              className="bg-transparent border-none focus:ring-0 text-label-md w-64 placeholder:text-outline-variant"
-              placeholder="Buscar empleados..."
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-md">
-          <button className="material-symbols-outlined hover:text-primary transition-colors active:scale-95 duration-200">notifications</button>
-          <button className="material-symbols-outlined hover:text-primary transition-colors active:scale-95 duration-200">settings</button>
-          <div className="w-10 h-10 rounded-full border border-primary/30 overflow-hidden">
-            <img
-              className="w-full h-full object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCog7suzmyhDzAan3orpDJ1wkDLOfeN9GTz5x6JXVN_JAuHsiaB1BIMa0u0q04EesJDnj-IfXM49gbhi44Tpsj8mzEjJkfOazn6GfAnw1qtl2QZ2LuPpfBcgMYfgeGmRlhdbQtqC4438Wfff2sFq1qx6HvjqkvtI0UFpEwAfsT2bkOqu-ze1mzN958EOdzdD4VV6C5_I04-7Ootg_ZbKRaOWS1izS13lW_qJyEOfpUeiRfwlyZG1JuKkFu0HfpfDgexqpMaSgLwtoDY"
-              alt="avatar"
-            />
-          </div>
-        </div>
-      </header>
-
-      {/* ===== SIDEBAR ===== */}
-      <aside className="fixed left-0 top-0 h-full w-64 z-40 bg-surface-container/80 backdrop-blur-2xl text-on-surface-variant font-label-md text-label-md border-r border-white/10 shadow-xl flex flex-col py-lg gap-base hidden md:flex mt-20">
-        <div className="px-md mb-md">
-          <h2 className="text-primary font-headline-lg text-[20px] tracking-tight">Management Hub</h2>
-          <p className="text-xs opacity-50">Control Centralizado</p>
-        </div>
-        <nav className="flex-1 space-y-xs px-sm">
-          <a className="flex items-center gap-sm px-md py-base text-primary border-r-2 border-primary bg-primary/5 hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-l-md" href="#">
-            <span className="material-symbols-outlined">dashboard</span>
-            <span>Dashboard</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-l-md" href="#">
-            <span className="material-symbols-outlined">group</span>
-            <span>Usuarios</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-l-md" href="#">
-            <span className="material-symbols-outlined">inventory_2</span>
-            <span>Inventario</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-l-md" href="#">
-            <span className="material-symbols-outlined">monitoring</span>
-            <span>Analytics</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 rounded-l-md" href="#">
-            <span className="material-symbols-outlined">event_seat</span>
-            <span>Reservations</span>
-          </a>
-        </nav>
-        <div className="mt-auto px-sm space-y-xs border-t border-white/5 pt-md">
-          <a className="flex items-center gap-sm px-md py-base hover:bg-white/5 transition-all rounded-l-md" href="#">
-            <span className="material-symbols-outlined">help</span>
-            <span>Support</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base hover:bg-error/10 text-error/80 transition-all rounded-l-md" href="/home">
-            <span className="material-symbols-outlined">logout</span>
-            <span>Logout</span>
-          </a>
-        </div>
-      </aside>
-
       {/* ===== MAIN CONTENT ===== */}
-      <main className="md:ml-64 pt-24 px-margin-mobile md:px-margin-desktop pb-xl min-h-screen">
+      <main className="pt-20 px-margin-mobile md:px-margin-desktop pb-xl min-h-screen">
         <div className="flex flex-col gap-xl">
           {/* Header Section */}
           <div className="flex justify-between items-end">
@@ -620,7 +549,7 @@ const AdminUsuarios = () => {
               </div>
             </section>
 
-            {/* Panel de estadísticas y roles (reemplaza inventario) */}
+            {/* Panel de estadísticas y roles */}
             <section className="xl:col-span-4 flex flex-col gap-md">
               <div className="glass-card rounded-xl overflow-hidden flex flex-col h-full border border-white/10 shadow-2xl relative">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
@@ -631,7 +560,6 @@ const AdminUsuarios = () => {
                   </h3>
                 </div>
                 <div className="p-md space-y-md z-10 custom-scrollbar overflow-y-auto max-h-[600px]">
-                  {/* Tarjeta: Distribución por roles */}
                   <div className="glass-card p-sm rounded-lg border-white/5">
                     <div className="text-xs text-outline-variant uppercase font-bold tracking-widest mb-2">Distribución por Roles</div>
                     <div className="space-y-2">
@@ -648,7 +576,6 @@ const AdminUsuarios = () => {
                     </div>
                   </div>
 
-                  {/* Tarjeta: Usuarios activos vs inactivos */}
                   <div className="glass-card p-sm rounded-lg border-white/5">
                     <div className="text-xs text-outline-variant uppercase font-bold tracking-widest mb-2">Estado</div>
                     <div className="flex justify-between">
@@ -663,7 +590,6 @@ const AdminUsuarios = () => {
                     </div>
                   </div>
 
-                  {/* Acción rápida: Sincronizar */}
                   <button
                     onClick={cargarUsuarios}
                     className="w-full py-md border-2 border-primary/40 text-primary rounded-xl font-bold hover:bg-primary hover:text-on-primary transition-all flex items-center justify-center gap-sm active:scale-95"
@@ -676,7 +602,7 @@ const AdminUsuarios = () => {
             </section>
           </div>
 
-          {/* Visual Performance Gauges Footer Row (adaptado a usuarios) */}
+          {/* Visual Performance Gauges */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
             <div className="glass-card p-md rounded-xl flex items-center justify-between border-white/5">
               <div className="flex flex-col">
@@ -787,6 +713,8 @@ const AdminUsuarios = () => {
                   <option value="Camarero">Camarero</option>
                   <option value="Gerente">Gerente</option>
                   <option value="Administrador">Administrador</option>
+                  <option value="Nuevo Cliente">Nuevo Cliente</option>
+                  <option value="DJ">DJ</option>
                 </select>
               </div>
               <div>

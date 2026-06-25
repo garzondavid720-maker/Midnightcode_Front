@@ -1,4 +1,5 @@
 // src/pages/public/SignupPage.jsx
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -28,7 +29,7 @@ const schema = yup.object({
 });
 
 export default function RegisterPage() {
-  const { register: authRegister, googleLogin, authError, clearError, loading } = useAuth();
+  const { register: authRegister, googleLogin, authError, clearError, loading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm({
@@ -36,6 +37,21 @@ export default function RegisterPage() {
   });
 
   const password = watch('password', '');
+
+  // Redirigir si ya está autenticado (desde contexto o localStorage)
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate(roleRedirect(user.role), { replace: true });
+      return;
+    }
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user');
+    if (token && userData) {
+      // Si hay datos en localStorage pero el contexto no los tiene, redirigir
+      // (el contexto ya debería restaurar sesión, pero por si acaso)
+      navigate(roleRedirect(JSON.parse(userData).role), { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const onSubmit = async (data) => {
     clearError();
@@ -46,6 +62,9 @@ export default function RegisterPage() {
       password: data.password,
     });
     if (result.success) {
+      // Guardar en localStorage (por si el contexto no lo hace)
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('user', JSON.stringify(result.user));
       navigate(roleRedirect(result.role), { replace: true });
     }
   };
@@ -54,6 +73,8 @@ export default function RegisterPage() {
     clearError();
     const result = await googleLogin(credential);
     if (result.success) {
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('user', JSON.stringify(result.user));
       navigate(roleRedirect(result.role), { replace: true });
     }
   };
