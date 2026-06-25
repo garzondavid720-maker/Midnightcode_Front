@@ -1,142 +1,392 @@
-// Employee Dashboard — empleado (ventas) y inventario (productos)
-import { useState } from "react";
-import { useAuth }    from "../../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
-import SalesModule    from "./SalesModule";
-import ProductsModule from "./ProductsModule";
-import ScheduleModule from "./ScheduleModule";
-import HelpModule     from "./HelpModule";
+import React, { useState, useEffect } from "react";
+import NavbarEmpleado from "../../../components/Layout/NavbarEmpleado";
 
-function NavIcon({ d }) {
-  return (
-    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path d={d} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-    </svg>
+const STORAGE_KEY = "afterdark_horarios";
+const SOLICITUDES_KEY = "afterdark_solicitudes_cambio";
+
+const EmpleadoHorarios = () => {
+  const [horarios, setHorarios] = useState([]);
+  const [empleado, setEmpleado] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState({ visible: false, mensaje: "", tipo: "" });
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [solicitud, setSolicitud] = useState({ dia: "", motivo: "" });
+
+  // Días de la semana
+  const diasSemana = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
+
+  // Identificar empleado al cargar
+  useEffect(() => {
+    let user = sessionStorage.getItem("empleadoActual");
+    if (!user) {
+      user = prompt("Ingresa tu nombre completo o documento para ver tu horario:");
+      if (user) {
+        sessionStorage.setItem("empleadoActual", user);
+      } else {
+        user = "Anónimo";
+        sessionStorage.setItem("empleadoActual", user);
+      }
+    }
+    setEmpleado(user);
+    cargarHorarios();
+  }, []);
+
+  const cargarHorarios = () => {
+    setLoading(true);
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const data = JSON.parse(stored);
+        setHorarios(data);
+      } else {
+        setHorarios([]);
+      }
+    } catch (err) {
+      setHorarios([]);
+      mostrarToast("Error al cargar horarios", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const mostrarToast = (mensaje, tipo = "success") => {
+    setToast({ visible: true, mensaje, tipo });
+    setTimeout(() => setToast({ visible: false, mensaje: "", tipo: "" }), 3000);
+  };
+
+  // Filtrar horarios del empleado actual
+  const horariosEmpleado = horarios.filter(
+    (h) =>
+      h.nombre?.toLowerCase().includes(empleado.toLowerCase()) ||
+      h.documento?.toLowerCase().includes(empleado.toLowerCase())
   );
-}
 
-const NAV_EMPLEADO = [
-  {
-    id: "sales", label: "Ventas", desc: "Registrar una venta",
-    icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-  },
-  {
-    id: "products", label: "Inventario", desc: "Ver productos disponibles",
-    icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
-  },
-  {
-    id: "schedule", label: "Mi Horario", desc: "Tu turno esta semana",
-    icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-  },
-  {
-    id: "help", label: "Ayuda", desc: "Tutoriales y FAQ",
-    icon: "M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
-  },
-];
+  // Obtener horario por día
+  const getHorarioPorDia = (dia) => {
+    return horariosEmpleado.find((h) => h.dia === dia);
+  };
 
-export default function EmployeeDashboard() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  // Enviar solicitud de cambio
+  const handleSolicitarCambio = (e) => {
+    e.preventDefault();
+    if (!solicitud.dia || !solicitud.motivo.trim()) {
+      mostrarToast("Selecciona un día y escribe un motivo", "error");
+      return;
+    }
 
-  const isInventario = user?.role === "inventario";
-  // Inventario = todas las capacidades de empleado + gestión de inventario (mismo NAV)
-  const NAV = NAV_EMPLEADO;
+    // Guardar solicitud en localStorage (separado)
+    const stored = localStorage.getItem(SOLICITUDES_KEY);
+    const solicitudes = stored ? JSON.parse(stored) : [];
+    solicitudes.push({
+      id: Date.now(),
+      empleado,
+      dia: solicitud.dia,
+      motivo: solicitud.motivo,
+      estado: "Pendiente",
+      fechaSolicitud: new Date().toISOString(),
+    });
+    localStorage.setItem(SOLICITUDES_KEY, JSON.stringify(solicitudes));
+    mostrarToast(`Solicitud enviada para el día ${solicitud.dia}`, "success");
+    setModalAbierto(false);
+    setSolicitud({ dia: "", motivo: "" });
+  };
 
-  const [active, setActive] = useState(NAV[0].id);
-
-  const handleLogout = () => { logout(); navigate("/login", { replace: true }); };
-  const current = NAV.find(n => n.id === active);
+  // Obtener color según rol
+  const getColorRol = (rol) => {
+    if (rol === "Seguridad") return "primary";
+    if (rol === "Bartender") return "secondary";
+    if (rol === "Server") return "tertiary";
+    return "on-surface";
+  };
 
   return (
-    <div className="flex h-screen bg-black w-full overflow-hidden">
-
-      {/* SIDEBAR */}
-      <aside className="w-20 lg:w-64 bg-deep-charcoal border-r border-gray-800 flex flex-col items-center lg:items-start py-8 transition-all duration-300 flex-shrink-0">
-
-        {/* Logo */}
-        <div className="px-4 lg:px-6 mb-10 flex items-center gap-3 w-full justify-center lg:justify-start">
-          <div className="w-10 h-10 bg-neon-purple rounded-lg flex items-center justify-center shadow-neon-glow animate-pulse-neon flex-shrink-0">
-            <span className="font-orbitron font-black text-black text-xl">N</span>
-          </div>
-          <div className="hidden lg:block">
-            <p className="font-orbitron font-black text-sm text-white leading-tight">
-              <span className="text-neon-purple">MIDNIGHT</span>CODE
+    <>
+      <NavbarEmpleado active="horario" />
+      <main className="pt-24 pb-20 px-margin-mobile md:px-margin-desktop min-h-screen bg-[#050505]">
+        <div className="max-w-6xl mx-auto">
+          <header className="mb-lg">
+            <h1 className="font-display-lg text-display-lg text-primary mb-2">Mi Horario</h1>
+            <p className="font-body-lg text-body-lg text-on-surface-variant">
+              Visualiza tus turnos y solicita cambios si lo necesitas.
             </p>
-            <p className="text-neon-magenta text-[9px] uppercase tracking-widest font-mono">
-              {isInventario ? "Portal Inventario" : "Portal Empleado"}
+            <p className="text-sm text-on-surface-variant mt-1">
+              Empleado: <span className="text-primary font-bold">{empleado}</span>
             </p>
-          </div>
-        </div>
+          </header>
 
-        {/* Avatar */}
-        <div className="hidden lg:flex items-center gap-3 mx-4 p-3 mb-6 bg-neon-purple/5 rounded-xl border border-neon-purple/15 w-[calc(100%-2rem)]">
-          <div className="w-9 h-9 rounded-full bg-neon-purple/20 border border-neon-purple/40 flex items-center justify-center flex-shrink-0">
-            <span className="text-neon-purple font-bold text-sm">{(user?.name || "E")[0].toUpperCase()}</span>
-          </div>
-          <div className="min-w-0">
-            <p className="text-white font-bold text-sm truncate">{user?.name}</p>
-            <p className="text-neon-magenta text-[10px] font-mono capitalize">{user?.role}</p>
-          </div>
-        </div>
+          {loading ? (
+            <div className="text-center text-on-surface-variant py-12">Cargando horario...</div>
+          ) : horariosEmpleado.length === 0 ? (
+            <div className="text-center text-on-surface-variant py-12 glass-card rounded-xl p-12">
+              <span className="material-symbols-outlined text-6xl text-on-surface-variant/40 mb-4">event_busy</span>
+              <p className="font-body-lg">No tienes turnos asignados aún.</p>
+              <p className="text-sm">Contacta a tu supervisor para más información.</p>
+            </div>
+          ) : (
+            <div className="glass-card rounded-xl p-md overflow-hidden">
+              <div className="grid grid-cols-8 gap-1 border border-white/5 rounded-lg overflow-hidden bg-white/5">
+                {/* Header */}
+                <div className="p-2 bg-surface-container-high text-on-surface-variant font-label-md text-center border-b border-r border-white/5">
+                  Día
+                </div>
+                {diasSemana.map((dia) => (
+                  <div key={dia} className="p-2 bg-surface-container-high font-label-md text-center border-b border-r border-white/5">
+                    {dia}
+                  </div>
+                ))}
 
-        {/* Nav */}
-        <nav className="flex-1 w-full px-2 lg:px-4 space-y-1">
-          <p className="hidden lg:block text-gray-700 text-[9px] uppercase tracking-widest font-mono px-3 mb-3">Menú principal</p>
-          {NAV.map(item => (
-            <button key={item.id} onClick={() => setActive(item.id)}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                active === item.id
-                  ? "bg-gradient-to-r from-neon-purple/20 to-transparent border-l-4 border-neon-purple text-neon-purple"
-                  : "text-gray-500 hover:text-white hover:bg-white/5 border-l-4 border-transparent"
-              }`}>
-              <NavIcon d={item.icon} />
-              <div className="hidden lg:block text-left">
-                <p className={`font-bold text-sm ${active === item.id ? "text-white" : "text-gray-400"}`}>{item.label}</p>
-                <p className={`text-[10px] font-mono ${active === item.id ? "text-neon-purple" : "text-gray-600"}`}>{item.desc}</p>
+                {/* Fila del empleado */}
+                <div className="p-3 bg-surface-container border-b border-r border-white/5 flex items-center gap-2 col-span-1">
+                  <div className="w-8 h-8 rounded-full bg-surface-variant overflow-hidden">
+                    <img
+                      className="w-full h-full object-cover"
+                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuACoXGc4a1d7HOUx7q5fXp6KhHag81a3nDc_VH8_OCOJ8T9yuUlKDmy1l0H_7uMxCZaQI2Qr9U2NKTJs6cWOwvBm7OnCNKxa0iQaiu5qkf6UuCErZ7gTkN6v8xROE4C5WQ0Ye9qsYbp-6mX08OIpEgWrrBoGK9Dr-UWGJrzMWh5hDjy7z9UJiNMo3qLVCZLrKa9eZ7x57z3scakB4-GcVoiNlqPiFh7gYuw4wMjiUUiSj1zT84WyPLExlcbn-aGFAnN14e2d1W6jf8U"
+                      alt={empleado}
+                    />
+                  </div>
+                  <span className="text-xs font-label-md truncate">{empleado}</span>
+                </div>
+                {diasSemana.map((dia) => {
+                  const horario = getHorarioPorDia(dia);
+                  const rol = horario?.rol || "Seguridad";
+                  const color = getColorRol(rol);
+                  return (
+                    <div key={dia} className="p-2 bg-surface-container/50 border-b border-r border-white/5 flex items-center justify-center col-span-1">
+                      {horario ? (
+                        <div
+                          className={`w-full h-8 rounded flex items-center justify-center text-[10px] text-${color} bg-${color}/20 border border-${color}/40 cursor-pointer hover:brightness-110 transition-all`}
+                          title={`${horario.horaInicio} - ${horario.horaFin}`}
+                        >
+                          {horario.horaInicio} - {horario.horaFin}
+                        </div>
+                      ) : (
+                        <div className="w-full h-8 bg-white/5 border border-white/5 rounded flex items-center justify-center text-[10px] text-on-surface-variant">—</div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            </button>
-          ))}
-        </nav>
+            </div>
+          )}
 
-        {/* Logout */}
-        <div className="p-3 lg:p-4 border-t border-gray-800 w-full">
-          <button onClick={handleLogout}
-            className="w-full flex items-center gap-3 p-3 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20">
-            <NavIcon d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            <span className="hidden lg:block font-bold text-sm">Cerrar sesión</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* MAIN */}
-      <main className="flex-1 overflow-y-auto flex flex-col">
-
-        {/* Topbar */}
-        <header className="sticky top-0 z-10 bg-black/80 backdrop-blur border-b border-white/5 px-8 py-4 flex justify-between items-center flex-shrink-0">
-          <div>
-            <p className="text-gray-500 text-xs uppercase tracking-widest flex items-center gap-2 font-mono mb-1">
-              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-              Neon Overload · {isInventario ? "Inventario" : "Empleado"}
-            </p>
-            <h1 className="font-orbitron font-black text-2xl text-white uppercase tracking-wide">
-              {current?.label}
-            </h1>
-          </div>
-          <div className="text-right">
-            <p className="text-gray-500 text-xs font-mono mb-1">
-              {new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}
-            </p>
-          </div>
-        </header>
-
-        {/* Módulo activo */}
-        <div key={active} className="flex-1 p-8">
-          {active === "sales"    && <SalesModule    user={user} />}
-          {active === "products" && <ProductsModule user={user} />}
-          {active === "schedule" && <ScheduleModule user={user} />}
-          {active === "help"     && <HelpModule />}
+          {/* Botón para solicitar cambio (solo si hay horarios) */}
+          {horariosEmpleado.length > 0 && (
+            <div className="mt-lg flex justify-center">
+              <button
+                onClick={() => setModalAbierto(true)}
+                className="bg-primary text-on-primary px-8 py-3 rounded-xl font-label-md shadow-[0_0_20px_rgba(233,179,255,0.4)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined">edit_calendar</span>
+                Solicitar Cambio de Turno
+              </button>
+            </div>
+          )}
         </div>
       </main>
-    </div>
+
+      {/* ===== MODAL DE SOLICITUD ===== */}
+      {modalAbierto && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="glass-card rounded-2xl p-6 w-full max-w-md relative border border-white/20 shadow-2xl">
+            <button
+              onClick={() => setModalAbierto(false)}
+              className="absolute top-3 right-3 text-on-surface-variant hover:text-primary transition-colors"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <h3 className="font-headline-md text-headline-md text-on-surface mb-4">Solicitar Cambio de Turno</h3>
+            <form onSubmit={handleSolicitarCambio} className="space-y-4">
+              <div>
+                <label className="block text-xs font-label-md text-on-surface-variant mb-1">Día a cambiar</label>
+                <select
+                  value={solicitud.dia}
+                  onChange={(e) => setSolicitud({ ...solicitud, dia: e.target.value })}
+                  className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
+                  required
+                >
+                  <option value="">Seleccionar día</option>
+                  {diasSemana.map((dia) => (
+                    <option key={dia} value={dia}>
+                      {dia}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-label-md text-on-surface-variant mb-1">Motivo del cambio</label>
+                <textarea
+                  value={solicitud.motivo}
+                  onChange={(e) => setSolicitud({ ...solicitud, motivo: e.target.value })}
+                  className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none resize-none"
+                  rows="3"
+                  placeholder="Ej. Necesito cubrir un turno de mañana..."
+                  required
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="flex-1 bg-primary text-on-primary py-2 rounded-xl font-label-md hover:brightness-110 transition-all active:scale-95"
+                >
+                  Enviar Solicitud
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalAbierto(false)}
+                  className="flex-1 bg-surface-container-high border border-white/10 text-on-surface-variant py-2 rounded-xl font-label-md hover:bg-white/5 transition-all"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== TOAST ===== */}
+      {toast.visible && (
+        <div
+          className={`fixed bottom-24 right-8 glass-card rounded-xl px-md py-sm flex items-center gap-sm transition-all duration-300 z-[100] border ${
+            toast.tipo === "error" ? "border-error/30" : "border-primary/30"
+          }`}
+        >
+          <span className="material-symbols-outlined text-primary">check_circle</span>
+          <div>
+            <p className="text-on-surface font-bold text-sm">{toast.mensaje}</p>
+          </div>
+        </div>
+      )}
+
+      {/* ===== ESTILOS DE RESPALDO (idénticos a los del admin) ===== */}
+      <style jsx>{`
+        body, html {
+          background-color: #050505 !important;
+          margin: 0;
+          padding: 0;
+        }
+        .pt-24 { padding-top: 6rem; }
+        .pb-20 { padding-bottom: 5rem; }
+        .min-h-screen { min-height: 100vh; }
+        .px-margin-mobile { padding-left: 16px; padding-right: 16px; }
+        .md\\:px-margin-desktop { padding-left: 48px; padding-right: 48px; }
+        .max-w-6xl { max-width: 72rem; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .font-display-lg { font-family: Montserrat, sans-serif; font-size: 48px; line-height: 56px; letter-spacing: -0.02em; font-weight: 800; }
+        .text-display-lg { font-size: 48px; line-height: 56px; letter-spacing: -0.02em; font-weight: 800; }
+        .font-body-lg { font-family: Inter, sans-serif; font-size: 18px; line-height: 28px; font-weight: 400; }
+        .text-body-lg { font-size: 18px; line-height: 28px; font-weight: 400; }
+        .font-label-md { font-family: Inter, sans-serif; font-size: 14px; line-height: 20px; letter-spacing: 0.05em; font-weight: 600; }
+        .text-label-md { font-size: 14px; line-height: 20px; letter-spacing: 0.05em; font-weight: 600; }
+        .font-headline-md { font-family: Montserrat, sans-serif; font-size: 24px; line-height: 32px; font-weight: 600; }
+        .text-headline-md { font-size: 24px; line-height: 32px; font-weight: 600; }
+        .text-primary { color: #e9b3ff; }
+        .text-on-surface { color: #e5e2e1; }
+        .text-on-surface-variant { color: #d2c1d4; }
+        .text-secondary { color: #ffb2b7; }
+        .text-tertiary { color: #e7c448; }
+        .text-error { color: #ffb4ab; }
+        .text-on-primary { color: #510074; }
+        .bg-primary { background-color: #e9b3ff; }
+        .bg-primary\\/20 { background-color: rgba(233,179,255,0.2); }
+        .bg-surface-container-high { background-color: #2a2a2a; }
+        .bg-surface-container { background-color: #201f1f; }
+        .bg-surface-variant { background-color: #353534; }
+        .bg-white\\/5 { background-color: rgba(255,255,255,0.05); }
+        .border-white\\/10 { border-color: rgba(255,255,255,0.1); }
+        .border-white\\/5 { border-color: rgba(255,255,255,0.05); }
+        .border-primary\\/40 { border-color: rgba(233,179,255,0.4); }
+        .border-primary\\/30 { border-color: rgba(233,179,255,0.3); }
+        .glass-card {
+          background: rgba(28, 28, 30, 0.7);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          transition: all 0.3s ease;
+        }
+        .shadow-\\[0_0_20px_rgba\\(233\\,179\\,255\\,0\\.4\\)\\] {
+          box-shadow: 0 0 20px rgba(233,179,255,0.4);
+        }
+        .rounded-xl { border-radius: 0.75rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .transition-all { transition: all 0.3s ease; }
+        .active\\:scale-95:active { transform: scale(0.95); }
+        .hover\\:brightness-110:hover { filter: brightness(1.1); }
+        .material-symbols-outlined {
+          font-family: "Material Symbols Outlined";
+          font-weight: normal;
+          font-style: normal;
+          font-size: 24px;
+          line-height: 1;
+          letter-spacing: normal;
+          text-transform: none;
+          display: inline-block;
+          white-space: nowrap;
+          word-wrap: normal;
+          direction: ltr;
+          -webkit-font-feature-settings: "liga";
+          -webkit-font-smoothing: antialiased;
+        }
+        .mb-lg { margin-bottom: 40px; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mt-lg { margin-top: 40px; }
+        .mt-1 { margin-top: 0.25rem; }
+        .py-12 { padding-top: 3rem; padding-bottom: 3rem; }
+        .p-12 { padding: 3rem; }
+        .p-6 { padding: 1.5rem; }
+        .p-2 { padding: 0.5rem; }
+        .p-3 { padding: 0.75rem; }
+        .px-8 { padding-left: 2rem; padding-right: 2rem; }
+        .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-1 { gap: 0.25rem; }
+        .grid { display: grid; }
+        .grid-cols-8 { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+        .col-span-1 { grid-column: span 1 / span 1; }
+        .text-center { text-align: center; }
+        .text-xs { font-size: 0.75rem; line-height: 1rem; }
+        .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+        .text-\\[10px\\] { font-size: 10px; }
+        .text-6xl { font-size: 3.75rem; line-height: 1; }
+        .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bg-\\[\\#050505\\] { background-color: #050505; }
+        .w-8 { width: 2rem; }
+        .h-8 { height: 2rem; }
+        .h-full { height: 100%; }
+        .w-full { width: 100%; }
+        .object-cover { object-fit: cover; }
+        .overflow-hidden { overflow: hidden; }
+        .border { border-width: 1px; }
+        .border-b { border-bottom-width: 1px; }
+        .border-r { border-right-width: 1px; }
+        .border-r { border-right-width: 1px; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-4 { gap: 1rem; }
+        .space-y-4 > * + * { margin-top: 1rem; }
+        .bg-surface-container-highest { background-color: #353534; }
+        .bg-surface-container-high { background-color: #2a2a2a; }
+        .bg-surface-container/50 { background-color: rgba(32,31,31,0.5); }
+        .bg-white/5 { background-color: rgba(255,255,255,0.05); }
+        .cursor-pointer { cursor: pointer; }
+        .resize-none { resize: none; }
+        .border-error\\/30 { border-color: rgba(255,180,171,0.3); }
+        .fixed { position: fixed; }
+        .bottom-24 { bottom: 6rem; }
+        .right-8 { right: 2rem; }
+        .z-\\[100\\] { z-index: 100; }
+        .z-\\[200\\] { z-index: 200; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .bg-black\\/70 { background-color: rgba(0,0,0,0.7); }
+        .backdrop-blur-sm { backdrop-filter: blur(4px); }
+        .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+        @media (min-width: 768px) {
+          .md\\:px-margin-desktop { padding-left: 48px; padding-right: 48px; }
+        }
+      `}</style>
+    </>
   );
-}
+};
+
+export default EmpleadoHorarios;

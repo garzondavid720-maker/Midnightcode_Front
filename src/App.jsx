@@ -38,10 +38,14 @@ const UserMenu = lazy(() => import("./pages/Private/User/menu"))
 
 
 // Private — DJ
-const DJPanel = lazy(() => import("./pages/Private/DJ/DJPanel"))
+const DjCanciones = lazy(() => import("./pages/Private/DJ/DJPanel"))
 
 // Private — Employee
-const EmployeeDashboard = lazy(() => import("./pages/Private/Employee/EmployeeDashboard"))
+const EmpleadoHorarios = lazy(() => import("./pages/Private/Employee/EmployeeDashboard"))
+const EmpleadoVentas = lazy(() => import("./pages/Private/Employee/ventas"))
+const EmpleadoProductos = lazy(() => import("./pages/Private/Employee/inventario"))
+
+
 
 function App() {
   
@@ -93,13 +97,23 @@ function App() {
 
       {/* ── Private — DJ Panel ── */}
       <Route path="/dj" element={
-        <PrivateRoute role="dj"><DJPanel /></PrivateRoute>
+        <DjCanciones />
       } />
 
       {/* ── Private — Employee Portal (empleado + inventario) ── */}
       <Route path="/empleado" element={
-        <PrivateRoute role={["empleado", "inventario"]}><EmployeeDashboard /></PrivateRoute>
+        <EmpleadoHorarios />
       } />
+      {/* ── Private — Employee Portal (empleado + inventario) ── */}
+      <Route path="/empleado/ventas" element={
+        <EmpleadoVentas />
+      } />
+      {/* ── Private — Employee Portal (empleado + inventario) ── */}
+      <Route path="/empleado/inventario" element={
+        <EmpleadoProductos />
+      } />
+      
+      
 
       {/* 404 */}
       <Route path="*" element={

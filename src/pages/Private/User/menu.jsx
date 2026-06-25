@@ -1,18 +1,30 @@
 import React, { useState, useEffect } from "react";
 import NavbarUsuario from "../../../components/Layout/NavbarUsuario";
 
-// Clave para productos y carrito en localStorage
+// Claves para localStorage
 const PRODUCTOS_KEY = "afterdark_productos";
 const CARRITO_KEY = "afterdark_carrito";
+const PEDIDOS_KEY = "afterdark_pedidos_usuario";
+
+// Generador de código de pedido (formato AP-YYMM-XXX)
+const generarCodigoPedido = () => {
+  const fecha = new Date();
+  const year = fecha.getFullYear().toString().slice(-2);
+  const month = String(fecha.getMonth() + 1).padStart(2, "0");
+  const random = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+  return `AP-${year}${month}-${random}`;
+};
 
 const UserMenu = () => {
   // ===== ESTADOS =====
   const [productos, setProductos] = useState([]);
   const [carrito, setCarrito] = useState([]);
+  const [pedidos, setPedidos] = useState([]);
   const [categoriaActiva, setCategoriaActiva] = useState("Todos");
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ visible: false, mensaje: "", tipo: "" });
   const [carritoAbierto, setCarritoAbierto] = useState(false);
+  const [vista, setVista] = useState("menu");
 
   // ===== CARGAR DATOS =====
   useEffect(() => {
@@ -22,27 +34,25 @@ const UserMenu = () => {
   const cargarDatos = () => {
     setLoading(true);
     try {
-      // Cargar productos
       const storedProductos = localStorage.getItem(PRODUCTOS_KEY);
       if (storedProductos) {
         const productosData = JSON.parse(storedProductos);
-        // Solo mostrar productos con stock > 0
         const disponibles = productosData.filter(p => (p.stock || 0) > 0);
         setProductos(disponibles);
+        if (disponibles.length > 0) setCategoriaActiva("Todos");
       } else {
         setProductos([]);
       }
 
-      // Cargar carrito
       const storedCarrito = localStorage.getItem(CARRITO_KEY);
-      if (storedCarrito) {
-        setCarrito(JSON.parse(storedCarrito));
-      } else {
-        setCarrito([]);
-      }
+      setCarrito(storedCarrito ? JSON.parse(storedCarrito) : []);
+
+      const storedPedidos = localStorage.getItem(PEDIDOS_KEY);
+      setPedidos(storedPedidos ? JSON.parse(storedPedidos) : []);
     } catch (err) {
       setProductos([]);
       setCarrito([]);
+      setPedidos([]);
     } finally {
       setLoading(false);
     }
@@ -53,18 +63,75 @@ const UserMenu = () => {
     localStorage.setItem(CARRITO_KEY, JSON.stringify(carrito));
   }, [carrito]);
 
+  // ===== PERSISTIR PEDIDOS =====
+  useEffect(() => {
+    localStorage.setItem(PEDIDOS_KEY, JSON.stringify(pedidos));
+  }, [pedidos]);
+
   // ===== TOAST =====
   const mostrarToast = (mensaje, tipo = "success") => {
     setToast({ visible: true, mensaje, tipo });
-    setTimeout(() => setToast({ visible: false, mensaje: "", tipo: "" }), 3000);
+    setTimeout(() => setToast({ visible: false, mensaje: "", tipo: "" }), 4000);
+  };
+
+  // ===== ACTUALIZAR STOCK =====
+  const actualizarStockEnStorage = (nuevosProductos) => {
+    const stored = localStorage.getItem(PRODUCTOS_KEY);
+    if (stored) {
+      const todos = JSON.parse(stored);
+      const actualizados = todos.map(p => {
+        const encontrado = nuevosProductos.find(np => np.id === p.id);
+        return encontrado ? { ...p, stock: encontrado.stock } : p;
+      });
+      localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(actualizados));
+    } else {
+      localStorage.setItem(PRODUCTOS_KEY, JSON.stringify(nuevosProductos));
+    }
+    setProductos(nuevosProductos);
+  };
+
+  const descontarStock = (items) => {
+    const nuevosProductos = productos.map(p => {
+      const item = items.find(i => i.id === p.id);
+      if (item) {
+        const nuevoStock = Math.max(0, (p.stock || 0) - item.cantidad);
+        return { ...p, stock: nuevoStock };
+      }
+      return p;
+    });
+    actualizarStockEnStorage(nuevosProductos);
+  };
+
+  const devolverStock = (items) => {
+    const nuevosProductos = productos.map(p => {
+      const item = items.find(i => i.id === p.id);
+      if (item) {
+        return { ...p, stock: (p.stock || 0) + item.cantidad };
+      }
+      return p;
+    });
+    actualizarStockEnStorage(nuevosProductos);
   };
 
   // ===== MANEJAR CARRITO =====
   const agregarAlCarrito = (producto) => {
+    const productoActual = productos.find(p => p.id === producto.id);
+    if (!productoActual) {
+      mostrarToast("Producto no encontrado", "error");
+      return;
+    }
+    const stockDisponible = productoActual.stock || 0;
+    const itemEnCarrito = carrito.find(item => item.id === producto.id);
+    const cantidadActual = itemEnCarrito ? itemEnCarrito.cantidad : 0;
+
+    if (cantidadActual >= stockDisponible) {
+      mostrarToast(`Stock insuficiente. Solo hay ${stockDisponible} unidades disponibles.`, "error");
+      return;
+    }
+
     setCarrito((prev) => {
       const existente = prev.find((item) => item.id === producto.id);
       if (existente) {
-        // Si ya existe, aumentar cantidad
         return prev.map((item) =>
           item.id === producto.id
             ? { ...item, cantidad: item.cantidad + 1 }
@@ -87,6 +154,15 @@ const UserMenu = () => {
       eliminarDelCarrito(id);
       return;
     }
+    const producto = productos.find(p => p.id === id);
+    if (!producto) {
+      mostrarToast("Producto no encontrado", "error");
+      return;
+    }
+    if (nuevaCantidad > (producto.stock || 0)) {
+      mostrarToast(`No hay suficiente stock. Máximo ${producto.stock} unidades.`, "error");
+      return;
+    }
     setCarrito((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, cantidad: nuevaCantidad } : item
@@ -100,18 +176,56 @@ const UserMenu = () => {
     mostrarToast("Carrito vaciado", "info");
   };
 
+  // ===== PROCESAR PEDIDO =====
   const procesarPedido = () => {
     if (carrito.length === 0) {
       mostrarToast("El carrito está vacío", "error");
       return;
     }
-    // Simular envío de pedido
-    setTimeout(() => {
-      mostrarToast("¡Pedido enviado con éxito! Tu camarero te servirá en breve.", "success");
-      setCarrito([]);
-      localStorage.removeItem(CARRITO_KEY);
-      setCarritoAbierto(false);
-    }, 800);
+
+    for (const item of carrito) {
+      const producto = productos.find(p => p.id === item.id);
+      if (!producto || item.cantidad > (producto.stock || 0)) {
+        mostrarToast(`Stock insuficiente para "${item.nombre}". Solo hay ${producto?.stock || 0} unidades.`, "error");
+        return;
+      }
+    }
+
+    const codigo = generarCodigoPedido();
+
+    const pedido = {
+      codigo,
+      fecha: new Date().toISOString(),
+      items: carrito.map(item => ({
+        id: item.id,
+        nombre: item.nombre,
+        cantidad: item.cantidad,
+        precio: item.precio,
+        subtotal: item.precio * item.cantidad
+      })),
+      total: carrito.reduce((acc, item) => acc + item.precio * item.cantidad, 0),
+    };
+
+    descontarStock(carrito);
+    setPedidos(prev => [...prev, pedido]);
+    mostrarToast(`Pedido #${codigo} creado. Dirígete a caja para pagar.`, "success");
+    setCarrito([]);
+    localStorage.removeItem(CARRITO_KEY);
+    setCarritoAbierto(false);
+  };
+
+  const cancelarPedido = (codigo) => {
+    if (!window.confirm(`¿Cancelar el pedido #${codigo}?`)) return;
+
+    const pedido = pedidos.find(p => p.codigo === codigo);
+    if (!pedido) {
+      mostrarToast("Pedido no encontrado", "error");
+      return;
+    }
+
+    devolverStock(pedido.items);
+    setPedidos(prev => prev.filter(p => p.codigo !== codigo));
+    mostrarToast(`Pedido #${codigo} cancelado`, "info");
   };
 
   // ===== CALCULAR TOTAL =====
@@ -122,7 +236,10 @@ const UserMenu = () => {
   const totalItems = carrito.reduce((acc, item) => acc + item.cantidad, 0);
 
   // ===== FILTROS =====
-  const categorias = ["Todos", ...new Set(productos.map((p) => p.categoria).filter(Boolean))];
+  const categorias = [
+    "Todos",
+    ...new Set(productos.map((p) => p.categoria).filter(Boolean)),
+  ];
   const productosFiltrados =
     categoriaActiva === "Todos"
       ? productos
@@ -138,7 +255,6 @@ const UserMenu = () => {
     }
   };
 
-  // Limpiar overflow al desmontar
   useEffect(() => {
     return () => {
       document.body.style.overflow = "";
@@ -148,96 +264,181 @@ const UserMenu = () => {
   // ===== RENDER =====
   return (
     <>
-      <NavbarUsuario />
-      <main className="md:ml-64 pt-24 pb-20 px-margin-mobile md:px-margin-desktop min-h-screen">
-        {/* Header */}
-        <header className="py-lg">
-          <h1 className="font-display-lg text-display-lg text-primary mb-2">Carta Premium</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
-            Explora nuestra exclusiva selección de destilados, cócteles de autor diseñados por expertos y bocados gourmet para elevar tu noche.
-          </p>
+      {/* Pasamos las props al NavbarUsuario */}
+      <NavbarUsuario onCartToggle={toggleCarrito} cartCount={totalItems} />
+
+      <main className="min-h-screen pt-20 pb-12 px-4 md:px-8 max-w-7xl mx-auto">
+        {/* Header con switcher de vistas */}
+        <header className="py-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display-lg text-display-lg text-primary mb-2">Carta Premium</h1>
+            <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
+              Explora nuestra exclusiva selección de destilados, cócteles de autor diseñados por expertos y bocados gourmet para elevar tu noche.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setVista("menu")}
+              className={`px-6 py-2 rounded-full font-label-md text-label-md transition-all ${
+                vista === "menu"
+                  ? "bg-primary text-on-primary shadow-[0_0_15px_rgba(233,179,255,0.4)]"
+                  : "glass-card hover:bg-white/10"
+              }`}
+            >
+              Menú
+            </button>
+            <button
+              onClick={() => setVista("pedidos")}
+              className={`px-6 py-2 rounded-full font-label-md text-label-md transition-all ${
+                vista === "pedidos"
+                  ? "bg-primary text-on-primary shadow-[0_0_15px_rgba(233,179,255,0.4)]"
+                  : "glass-card hover:bg-white/10"
+              }`}
+            >
+              Mis Pedidos {pedidos.length > 0 && `(${pedidos.length})`}
+            </button>
+          </div>
         </header>
 
-        {/* Category Filter (Sticky) */}
-        <div className="sticky top-[72px] z-40 bg-background/80 backdrop-blur-md px-margin-mobile md:px-margin-desktop py-4 mb-8 overflow-x-auto hide-scrollbar border-b border-white/5 -mx-margin-mobile md:-mx-margin-desktop px-margin-mobile md:px-margin-desktop">
-          <div className="flex gap-4 min-w-max">
-            {categorias.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoriaActiva(cat)}
-                className={`px-6 py-2 rounded-full font-label-md text-label-md transition-all ${
-                  categoriaActiva === cat
-                    ? "bg-primary text-on-primary shadow-[0_0_15px_rgba(233,179,255,0.4)]"
-                    : "glass-card hover:bg-white/10"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+        {/* Category Filter (solo en vista menú) */}
+        {vista === "menu" && (
+          <div className="sticky top-[72px] z-40 bg-background/80 backdrop-blur-md py-4 mb-8 overflow-x-auto hide-scrollbar border-b border-white/5">
+            <div className="flex gap-4 min-w-max">
+              {categorias.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoriaActiva(cat)}
+                  className={`px-6 py-2 rounded-full font-label-md text-label-md transition-all ${
+                    categoriaActiva === cat
+                      ? "bg-primary text-on-primary shadow-[0_0_15px_rgba(233,179,255,0.4)]"
+                      : "glass-card hover:bg-white/10"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Menu Grid */}
-        {loading ? (
-          <div className="text-center text-on-surface-variant py-12">Cargando productos...</div>
-        ) : productosFiltrados.length === 0 ? (
-          <div className="text-center text-on-surface-variant py-12">No hay productos disponibles</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-            {productosFiltrados.map((producto) => (
-              <div key={producto.id} className="glass-card rounded-xl overflow-hidden group">
-                <div className="h-64 relative overflow-hidden">
-                  <img
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    src={
-                      producto.imagen ||
-                      "https://lh3.googleusercontent.com/aida-public/AB6AXuAf9MRRIPOBB5ydXihfPFFDXl8nt52sKl3t6_u2yhybtPHfhEIQmQUl-vkIZ_j2t5_U7Cs0oOCCPk_ejWtbNUO-QCs_sICG4S6dCSe8tSzgF7mojKlQF4CBx_O3vJftiO4B_bfaVjLNTxGls7ubJZrvpO9bts5WpvBUziWNQeIcSos-Ml9Y7egHmH5bLZNg0F0EIVShGlhDCwdsFonrbyz11GnsocV6rdlBs9m24A-X5kcZxiiHplltmbM2hIZVcaRqAfpu5pemC97r"
-                    }
-                    alt={producto.nombre}
-                  />
-                  {producto.categoria && (
-                    <div className="absolute top-4 left-4 bg-primary/20 backdrop-blur-md border border-primary/30 px-3 py-1 rounded-full">
-                      <span className="text-primary font-label-md text-label-md">{producto.categoria}</span>
+        {/* Contenido según vista */}
+        {vista === "menu" ? (
+          loading ? (
+            <div className="text-center text-on-surface-variant py-12">Cargando productos...</div>
+          ) : productosFiltrados.length === 0 ? (
+            <div className="text-center text-on-surface-variant py-12">No hay productos disponibles</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {productosFiltrados.map((producto) => {
+                const stock = producto.stock || 0;
+                const enCarrito = carrito.find(item => item.id === producto.id);
+                const cantidadEnCarrito = enCarrito ? enCarrito.cantidad : 0;
+                const puedeAgregar = stock > 0 && cantidadEnCarrito < stock;
+
+                return (
+                  <div key={producto.id} className="glass-card rounded-xl overflow-hidden group">
+                    <div className="h-64 relative overflow-hidden">
+                      <img
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        src={
+                          producto.imagen ||
+                          "https://lh3.googleusercontent.com/aida-public/AB6AXuAf9MRRIPOBB5ydXihfPFFDXl8nt52sKl3t6_u2yhybtPHfhEIQmQUl-vkIZ_j2t5_U7Cs0oOCCPk_ejWtbNUO-QCs_sICG4S6dCSe8tSzgF7mojKlQF4CBx_O3vJftiO4B_bfaVjLNTxGls7ubJZrvpO9bts5WpvBUziWNQeIcSos-Ml9Y7egHmH5bLZNg0F0EIVShGlhDCwdsFonrbyz11GnsocV6rdlBs9m24A-X5kcZxiiHplltmbM2hIZVcaRqAfpu5pemC97r"
+                        }
+                        alt={producto.nombre}
+                      />
+                      {producto.categoria && (
+                        <div className="absolute top-4 left-4 bg-primary/20 backdrop-blur-md border border-primary/30 px-3 py-1 rounded-full">
+                          <span className="text-primary font-label-md text-label-md">{producto.categoria}</span>
+                        </div>
+                      )}
+                      <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
+                        <span className="text-xs text-on-surface-variant">
+                          Stock: <span className="text-primary font-bold">{stock}</span>
+                        </span>
+                      </div>
                     </div>
-                  )}
-                </div>
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-headline-md text-headline-md text-on-surface">{producto.nombre}</h3>
-                    <span className="font-stats-number text-primary text-xl">${producto.precio?.toFixed(2)}</span>
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-headline-md text-headline-md text-on-surface">{producto.nombre}</h3>
+                        <span className="font-stats-number text-primary text-xl">${producto.precio?.toFixed(2)}</span>
+                      </div>
+                      <p className="font-body-md text-body-md text-on-surface-variant mb-4">
+                        {producto.descripcion || "Descripción no disponible"}
+                      </p>
+                      {stock === 0 && <p className="text-error text-sm font-bold mb-2">Agotado</p>}
+                      <button
+                        onClick={() => agregarAlCarrito(producto)}
+                        disabled={!puedeAgregar}
+                        className={`w-full py-3 rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 transition-all ${
+                          puedeAgregar
+                            ? "bg-primary text-on-primary hover:brightness-110 active:scale-95 neon-glow-primary"
+                            : "bg-white/10 text-on-surface-variant cursor-not-allowed opacity-50"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+                        {stock === 0 ? "Agotado" : cantidadEnCarrito > 0 ? `Añadir (${cantidadEnCarrito} en carrito)` : "Añadir al Carrito"}
+                      </button>
+                    </div>
                   </div>
-                  <p className="font-body-md text-body-md text-on-surface-variant mb-6">
-                    {producto.descripcion || "Descripción no disponible"}
-                  </p>
-                  <button
-                    onClick={() => agregarAlCarrito(producto)}
-                    className="w-full bg-primary text-on-primary py-3 rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 active:scale-95 transition-transform neon-glow-primary"
-                  >
-                    <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
-                    Añadir al Carrito
-                  </button>
-                </div>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          <div className="space-y-6">
+            <h2 className="font-headline-lg text-headline-lg text-on-surface">Historial de Pedidos</h2>
+            {pedidos.length === 0 ? (
+              <div className="text-center text-on-surface-variant py-12 glass-card rounded-xl p-12">
+                <span className="material-symbols-outlined text-6xl text-on-surface-variant/40 mb-4">receipt_long</span>
+                <p className="font-body-lg">No has realizado ningún pedido aún.</p>
+                <p className="text-sm">Explora el menú y comienza tu experiencia.</p>
               </div>
-            ))}
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {pedidos.map((pedido) => {
+                  const fecha = new Date(pedido.fecha);
+                  const fechaFormateada = fecha.toLocaleDateString("es-ES", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                  return (
+                    <div key={pedido.codigo} className="glass-card rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-primary/50 transition-all">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="font-headline-md text-headline-md text-primary">#{pedido.codigo}</span>
+                          <span className="text-xs text-on-surface-variant bg-white/5 px-3 py-1 rounded-full">{fechaFormateada}</span>
+                          <span className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-full font-bold">Pendiente</span>
+                        </div>
+                        <div className="space-y-1">
+                          {pedido.items.map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-sm text-on-surface-variant">
+                              <span>{item.cantidad}x {item.nombre}</span>
+                              <span className="text-on-surface">${item.subtotal.toFixed(2)}</span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between font-bold text-on-surface pt-2 border-t border-white/5">
+                            <span>Total</span>
+                            <span className="text-primary font-stats-number text-xl">${pedido.total.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => cancelarPedido(pedido.codigo)}
+                        className="bg-error/20 text-error px-6 py-2 rounded-lg font-label-md hover:bg-error/30 transition-all active:scale-95"
+                      >
+                        Cancelar Pedido
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </main>
-
-      {/* ===== BOTÓN CARRITO FLOTANTE (FAB) ===== */}
-      <button
-        onClick={toggleCarrito}
-        className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-50 w-16 h-16 bg-primary text-on-primary rounded-full shadow-[0_0_30px_rgba(233,179,255,0.6)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all group"
-      >
-        <span className="material-symbols-outlined text-3xl">shopping_cart</span>
-        {totalItems > 0 && (
-          <span className="absolute -top-1 -right-1 bg-secondary text-on-secondary text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(255,178,183,0.6)]">
-            {totalItems}
-          </span>
-        )}
-        <span className="absolute right-20 bg-surface-container border border-white/10 px-4 py-2 rounded-lg text-sm whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          Ver carrito
-        </span>
-      </button>
 
       {/* ===== OVERLAY CARRITO ===== */}
       <div
@@ -263,7 +464,7 @@ const UserMenu = () => {
           </button>
         </div>
 
-        <div className="flex-grow overflow-y-auto p-6 space-y-4 hide-scrollbar" id="cart-items">
+        <div className="flex-grow overflow-y-auto p-6 space-y-4 hide-scrollbar">
           {carrito.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
               <span className="material-symbols-outlined text-6xl mb-4">shopping_cart_off</span>
@@ -271,37 +472,49 @@ const UserMenu = () => {
               <p className="text-sm">Empieza a añadir experiencias a tu noche.</p>
             </div>
           ) : (
-            carrito.map((item) => (
-              <div key={item.id} className="glass-card p-4 rounded-lg flex justify-between items-center">
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-label-md text-on-surface truncate">{item.nombre}</h4>
-                  <p className="text-primary font-stats-number text-sm">
-                    ${item.precio.toFixed(2)} x {item.cantidad}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <button
-                      onClick={() => actualizarCantidad(item.id, item.cantidad - 1)}
-                      className="text-on-surface-variant hover:text-primary w-6 h-6 rounded-full flex items-center justify-center border border-white/10"
-                    >
-                      <span className="material-symbols-outlined text-sm">remove</span>
-                    </button>
-                    <span className="text-sm text-on-surface-variant">{item.cantidad}</span>
-                    <button
-                      onClick={() => actualizarCantidad(item.id, item.cantidad + 1)}
-                      className="text-on-surface-variant hover:text-primary w-6 h-6 rounded-full flex items-center justify-center border border-white/10"
-                    >
-                      <span className="material-symbols-outlined text-sm">add</span>
-                    </button>
+            carrito.map((item) => {
+              const producto = productos.find(p => p.id === item.id);
+              const stock = producto ? producto.stock : 0;
+              return (
+                <div key={item.id} className="glass-card p-4 rounded-lg flex justify-between items-center">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-label-md text-on-surface truncate">{item.nombre}</h4>
+                    <p className="text-primary font-stats-number text-sm">
+                      ${item.precio.toFixed(2)} x {item.cantidad}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <button
+                        onClick={() => actualizarCantidad(item.id, item.cantidad - 1)}
+                        className="text-on-surface-variant hover:text-primary w-6 h-6 rounded-full flex items-center justify-center border border-white/10"
+                      >
+                        <span className="material-symbols-outlined text-sm">remove</span>
+                      </button>
+                      <span className="text-sm text-on-surface-variant">{item.cantidad}</span>
+                      <button
+                        onClick={() => actualizarCantidad(item.id, item.cantidad + 1)}
+                        disabled={item.cantidad >= stock}
+                        className={`w-6 h-6 rounded-full flex items-center justify-center border border-white/10 ${
+                          item.cantidad >= stock
+                            ? "opacity-30 cursor-not-allowed"
+                            : "hover:text-primary"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-sm">add</span>
+                      </button>
+                      {stock > 0 && (
+                        <span className="text-xs text-on-surface-variant ml-1">(max {stock})</span>
+                      )}
+                    </div>
                   </div>
+                  <button
+                    onClick={() => eliminarDelCarrito(item.id)}
+                    className="text-error hover:bg-error/10 p-2 rounded-full transition-colors"
+                  >
+                    <span className="material-symbols-outlined">delete</span>
+                  </button>
                 </div>
-                <button
-                  onClick={() => eliminarDelCarrito(item.id)}
-                  className="text-error hover:bg-error/10 p-2 rounded-full transition-colors"
-                >
-                  <span className="material-symbols-outlined">delete</span>
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -344,9 +557,8 @@ const UserMenu = () => {
         </div>
       )}
 
-      {/* ===== ESTILOS DE RESPALDO (exactos al HTML de "Carta Premium") ===== */}
+      {/* ===== ESTILOS DE RESPALDO ===== */}
       <style jsx>{`
-        /* Fondo negro global */
         body,
         html {
           background-color: #050505 !important;
@@ -354,33 +566,29 @@ const UserMenu = () => {
           padding: 0;
         }
 
-        .pt-24 {
-          padding-top: 6rem;
+        .pt-20 {
+          padding-top: 5rem;
         }
-        .md\\:ml-64 {
-          margin-left: 16rem;
+        .pb-12 {
+          padding-bottom: 3rem;
         }
-        .pb-20 {
-          padding-bottom: 5rem;
+        .px-4 {
+          padding-left: 1rem;
+          padding-right: 1rem;
+        }
+        .md\\:px-8 {
+          padding-left: 2rem;
+          padding-right: 2rem;
+        }
+        .max-w-7xl {
+          max-width: 80rem;
+        }
+        .mx-auto {
+          margin-left: auto;
+          margin-right: auto;
         }
         .min-h-screen {
           min-height: 100vh;
-        }
-        .px-margin-mobile {
-          padding-left: 16px;
-          padding-right: 16px;
-        }
-        .md\\:px-margin-desktop {
-          padding-left: 48px;
-          padding-right: 48px;
-        }
-        .-mx-margin-mobile {
-          margin-left: -16px;
-          margin-right: -16px;
-        }
-        .md\\:-mx-margin-desktop {
-          margin-left: -48px;
-          margin-right: -48px;
         }
 
         .font-display-lg {
@@ -472,6 +680,7 @@ const UserMenu = () => {
         .text-on-secondary {
           color: #67001c;
         }
+
         .bg-primary {
           background-color: #e9b3ff;
         }
@@ -481,8 +690,8 @@ const UserMenu = () => {
         .bg-secondary {
           background-color: #ffb2b7;
         }
-        .bg-surface-container {
-          background-color: #201f1f;
+        .bg-secondary\\/20 {
+          background-color: rgba(255, 178, 183, 0.2);
         }
         .bg-surface-container-highest {
           background-color: #353534;
@@ -499,6 +708,22 @@ const UserMenu = () => {
         .bg-black\\/60 {
           background-color: rgba(0, 0, 0, 0.6);
         }
+        .bg-white\\/10 {
+          background-color: rgba(255, 255, 255, 0.1);
+        }
+        .bg-white\\/5 {
+          background-color: rgba(255, 255, 255, 0.05);
+        }
+        .bg-error\\/20 {
+          background-color: rgba(255, 180, 171, 0.2);
+        }
+        .bg-error\\/30 {
+          background-color: rgba(255, 180, 171, 0.3);
+        }
+        .bg-error\\/10 {
+          background-color: rgba(255, 180, 171, 0.1);
+        }
+
         .border-white\\/10 {
           border-color: rgba(255, 255, 255, 0.1);
         }
@@ -510,6 +735,9 @@ const UserMenu = () => {
         }
         .border-primary\\/30 {
           border-color: rgba(233, 179, 255, 0.3);
+        }
+        .border-primary\\/50 {
+          border-color: rgba(233, 179, 255, 0.5);
         }
         .border-error\\/30 {
           border-color: rgba(255, 180, 171, 0.3);
@@ -576,16 +804,22 @@ const UserMenu = () => {
           -webkit-font-smoothing: antialiased;
         }
 
-        .gap-gutter {
-          gap: 24px;
+        .gap-6 {
+          gap: 1.5rem;
         }
-        .max-w-2xl {
-          max-width: 42rem;
+        .gap-4 {
+          gap: 1rem;
         }
-        .mx-auto {
-          margin-left: auto;
-          margin-right: auto;
+        .gap-3 {
+          gap: 0.75rem;
         }
+        .gap-2 {
+          gap: 0.5rem;
+        }
+        .gap-1 {
+          gap: 0.25rem;
+        }
+
         .grid {
           display: grid;
         }
@@ -598,36 +832,7 @@ const UserMenu = () => {
         .lg\\:grid-cols-3 {
           grid-template-columns: repeat(3, minmax(0, 1fr));
         }
-        .gap-4 {
-          gap: 1rem;
-        }
-        .gap-2 {
-          gap: 0.5rem;
-        }
-        .gap-3 {
-          gap: 0.75rem;
-        }
-        .w-full {
-          width: 100%;
-        }
-        .h-full {
-          height: 100%;
-        }
-        .h-64 {
-          height: 16rem;
-        }
-        .w-6 {
-          width: 1.5rem;
-        }
-        .h-6 {
-          height: 1.5rem;
-        }
-        .w-16 {
-          width: 4rem;
-        }
-        .h-16 {
-          height: 4rem;
-        }
+
         .flex {
           display: flex;
         }
@@ -663,6 +868,7 @@ const UserMenu = () => {
           font-size: 1.125rem;
           line-height: 1.75rem;
         }
+
         .uppercase {
           text-transform: uppercase;
         }
@@ -732,6 +938,9 @@ const UserMenu = () => {
         .p-2 {
           padding: 0.5rem;
         }
+        .p-12 {
+          padding: 3rem;
+        }
         .px-6 {
           padding-left: 1.5rem;
           padding-right: 1.5rem;
@@ -760,21 +969,21 @@ const UserMenu = () => {
           padding-top: 0.25rem;
           padding-bottom: 0.25rem;
         }
-        .py-lg {
-          padding-top: 40px;
-          padding-bottom: 40px;
+        .py-6 {
+          padding-top: 1.5rem;
+          padding-bottom: 1.5rem;
         }
         .mb-2 {
           margin-bottom: 0.5rem;
+        }
+        .mb-4 {
+          margin-bottom: 1rem;
         }
         .mb-6 {
           margin-bottom: 1.5rem;
         }
         .mb-8 {
           margin-bottom: 2rem;
-        }
-        .mb-4 {
-          margin-bottom: 1rem;
         }
         .mt-1 {
           margin-top: 0.25rem;
@@ -800,6 +1009,7 @@ const UserMenu = () => {
         .whitespace-nowrap {
           white-space: nowrap;
         }
+
         .transition-all {
           transition: all 0.3s ease;
         }
@@ -878,6 +1088,7 @@ const UserMenu = () => {
         .to-transparent {
           --tw-gradient-to: transparent;
         }
+
         .z-40 {
           z-index: 40;
         }
@@ -893,6 +1104,10 @@ const UserMenu = () => {
         .z-\\[100\\] {
           z-index: 100;
         }
+
+        .max-w-2xl {
+          max-width: 42rem;
+        }
         .max-w-md {
           max-width: 28rem;
         }
@@ -906,9 +1121,6 @@ const UserMenu = () => {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-        }
-        .bg-surface-container-highest {
-          background-color: #353534;
         }
         .bg-surface-container {
           background-color: #201f1f;
@@ -928,51 +1140,28 @@ const UserMenu = () => {
         .border {
           border-width: 1px;
         }
-        .border-white\\/10 {
-          border-color: rgba(255, 255, 255, 0.1);
-        }
-        .border-white\\/5 {
-          border-color: rgba(255, 255, 255, 0.05);
-        }
-        .border-primary\\/30 {
-          border-color: rgba(233, 179, 255, 0.3);
-        }
 
         .bg-primary/10 {
           background-color: rgba(233, 179, 255, 0.1);
         }
 
-        .bg-background\\/80 {
-          background-color: rgba(19, 19, 19, 0.8);
-        }
-
-        /* Sobrescritura para el sticky */
         .top-\\[72px\\] {
           top: 72px;
         }
 
-        /* Animación para el carrito */
-        .translate-x-0 {
-          transform: translateX(0);
-        }
-        .translate-x-full {
-          transform: translateX(100%);
-        }
-
         @media (min-width: 768px) {
-          .md\\:ml-64 {
-            margin-left: 16rem;
+          .md\\:flex-row {
+            flex-direction: row;
           }
-          .md\\:px-margin-desktop {
-            padding-left: 48px;
-            padding-right: 48px;
-          }
-          .md\\:-mx-margin-desktop {
-            margin-left: -48px;
-            margin-right: -48px;
+          .md\\:items-end {
+            align-items: flex-end;
           }
           .md\\:grid-cols-2 {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .md\\:px-8 {
+            padding-left: 2rem;
+            padding-right: 2rem;
           }
           .md\\:bottom-10 {
             bottom: 40px;
@@ -980,19 +1169,10 @@ const UserMenu = () => {
           .md\\:right-10 {
             right: 40px;
           }
-          .md\\:flex {
-            display: flex;
-          }
         }
         @media (min-width: 1024px) {
           .lg\\:grid-cols-3 {
             grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-          .lg\\:flex {
-            display: flex;
-          }
-          .lg\\:hidden {
-            display: none;
           }
         }
       `}</style>

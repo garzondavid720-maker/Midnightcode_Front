@@ -1,339 +1,615 @@
-// DJ Panel — mismo sistema visual que Admin (Tailwind + neon dark)
-import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth }  from "../../../context/AuthContext";
-import { useSongs } from "../../../context/SongContext";
+import React, { useState, useEffect } from "react";
+import NavbarDJ from "../../../components/Layout/NavbarDJ";
 
-function NavIcon({ d }) {
-  return (
-    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path d={d} strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
-    </svg>
-  );
-}
+const STORAGE_KEY = "afterdark_canciones";
 
-function Equalizer() {
-  return (
-    <div className="flex items-end gap-0.5 h-5">
-      {[0,1,2].map(i => (
-        <div key={i} className="w-1 bg-neon-purple rounded-sm" style={{ animation:`djBar${i} 0.8s ease ${i*0.2}s infinite` }} />
-      ))}
-      <style>{`
-        @keyframes djBar0{0%,100%{height:6px}50%{height:20px}}
-        @keyframes djBar1{0%,100%{height:10px}50%{height:18px}}
-        @keyframes djBar2{0%,100%{height:4px}50%{height:16px}}
-      `}</style>
-    </div>
-  );
-}
+const DjCanciones = () => {
+  // ===== ESTADOS =====
+  const [canciones, setCanciones] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState({ visible: false, mensaje: "", tipo: "" });
 
-const TABS = [
-  { id:"live",     label:"▶ En Vivo",   icon:"M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" },
-  { id:"queue",    label:"Cola",        icon:"M4 6h16M4 12h16M4 18h16" },
-  { id:"history",  label:"Historial",   icon:"M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
-  { id:"rejected", label:"Rechazadas",  icon:"M6 18L18 6M6 6l12 12" },
-];
+  const [filterType, setFilterType] = useState("pendientes");
+  const [aceptadas, setAceptadas] = useState([]);
+  const [historial, setHistorial] = useState([]);
 
-export default function DJPanel() {
-  const { user, logout }  = useAuth();
-  const navigate          = useNavigate();
-  const { queue, queued, playing, played, rejected, playSong, markPlayed, rejectSong, restoreSong } = useSongs();
+  // ===== SERVICIO LOCAL =====
+  const cancionService = {
+    getAll: async () => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    },
+    remove: async (id) => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return { success: false };
+      const todas = JSON.parse(stored);
+      const filtradas = todas.filter(c => c.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtradas));
+      return { success: true };
+    }
+  };
 
-  const [activeTab, setActiveTab] = useState("live");
-  const [timer,     setTimer]     = useState(0);
-  const [timerOn,   setTimerOn]   = useState(false);
-  const [filter,    setFilter]    = useState("all");
-
+  // ===== CARGAR CANCIONES =====
   useEffect(() => {
-    if (!timerOn) return;
-    const id = setInterval(() => setTimer(t => t + 1), 1000);
-    return () => clearInterval(id);
-  }, [timerOn]);
+    cargarCanciones();
+  }, []);
 
-  useEffect(() => {
-    if (playing) setTimerOn(true);
-    else { setTimerOn(false); setTimer(0); }
-  }, [playing?.id]);
+  const cargarCanciones = async () => {
+    setLoading(true);
+    try {
+      const data = await cancionService.getAll();
+      setCanciones(data);
+      setAceptadas([]);
+      setHistorial([]);
+    } catch (err) {
+      setCanciones([]);
+      mostrarToast("Error al cargar canciones", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleLogout = () => { logout(); navigate("/login", { replace: true }); };
+  // ===== TOAST =====
+  const mostrarToast = (mensaje, tipo = "success") => {
+    setToast({ visible: true, mensaje, tipo });
+    setTimeout(() => setToast({ visible: false, mensaje: "", tipo: "" }), 3000);
+  };
 
-  const fmt       = (s) => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
-  const allGenres = ["all", ...new Set(queued.map(s => s.genre).filter(Boolean))];
-  const filtered  = filter === "all" ? queued : queued.filter(s => s.genre === filter);
-  const totalVotes = queue.reduce((acc, s) => acc + (s.votes || 0), 0);
+  // ===== ACCIONES =====
+  const handleAceptar = (cancion) => {
+    setCanciones(prev => prev.filter(c => c.id !== cancion.id));
+    const aceptada = { ...cancion, estado: "aceptada", timestamp: Date.now() };
+    setAceptadas(prev => [...prev, aceptada]);
+    setHistorial(prev => [...prev, { ...aceptada, estadoHistorial: "Aceptada" }]);
+    mostrarToast(`"${cancion.titulo}" aceptada para sonar`, "success");
+  };
 
-  const currentTab = TABS.find(t => t.id === activeTab);
+  const handleEliminar = async (cancion) => {
+    try {
+      await cancionService.remove(cancion.id);
+      setCanciones(prev => prev.filter(c => c.id !== cancion.id));
+      const eliminada = { ...cancion, estado: "eliminada", timestamp: Date.now() };
+      setHistorial(prev => [...prev, { ...eliminada, estadoHistorial: "Eliminada" }]);
+      mostrarToast(`"${cancion.titulo}" eliminada`, "info");
+    } catch (err) {
+      mostrarToast("Error al eliminar", "error");
+    }
+  };
+
+  const handleEliminarAceptada = (cancion) => {
+    setAceptadas(prev => prev.filter(c => c.id !== cancion.id));
+    const eliminada = { ...cancion, estado: "eliminada", timestamp: Date.now() };
+    setHistorial(prev => [...prev, { ...eliminada, estadoHistorial: "Eliminada" }]);
+    mostrarToast(`"${cancion.titulo}" pasó al historial`, "info");
+  };
+
+  // ===== LISTA SEGÚN FILTRO =====
+  const getListaActual = () => {
+    switch (filterType) {
+      case "pendientes": return canciones;
+      case "aceptadas": return aceptadas;
+      case "historial": return historial;
+      default: return canciones;
+    }
+  };
+
+  const listaFiltrada = getListaActual().filter(c =>
+    c.titulo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.artista?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const totalPendientes = canciones.length;
+  const totalAceptadas = aceptadas.length;
+  const totalHistorial = historial.length;
+
+  // Contador de resultados filtrados
+  const resultadosCount = listaFiltrada.length;
 
   return (
-    <div className="flex h-screen bg-black w-full overflow-hidden">
-
-      {/* ── SIDEBAR ── */}
-      <aside className="w-20 lg:w-64 bg-deep-charcoal border-r border-gray-800 flex flex-col items-center lg:items-start py-8 transition-all duration-300 flex-shrink-0">
-        {/* Logo */}
-        <div className="px-4 lg:px-6 mb-10 flex items-center gap-3 w-full justify-center lg:justify-start">
-          <div className="w-10 h-10 bg-neon-purple rounded-lg flex items-center justify-center shadow-neon-glow animate-pulse-neon flex-shrink-0">
-            <span className="font-orbitron font-black text-black text-sm">DJ</span>
-          </div>
-          <div className="hidden lg:block">
-            <p className="font-orbitron font-black text-sm text-white leading-tight">
-              <span className="text-neon-purple">MIDNIGHT</span>CODE
-            </p>
-            <p className="text-neon-magenta text-[9px] uppercase tracking-widest font-mono">Panel DJ</p>
-          </div>
-        </div>
-
-        {/* Avatar */}
-        <div className="hidden lg:flex items-center gap-3 mx-4 p-3 mb-6 bg-neon-purple/5 rounded-xl border border-neon-purple/15 w-[calc(100%-2rem)]">
-          <div className="w-9 h-9 rounded-full bg-neon-purple/20 border border-neon-purple/40 flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {user?.avatar
-              ? <img src={user.avatar} alt="" className="w-full h-full object-cover" />
-              : <span className="text-neon-purple font-bold text-sm">{(user?.name || "D")[0].toUpperCase()}</span>}
-          </div>
-          <div className="min-w-0">
-            <p className="text-white font-bold text-sm truncate">{user?.name}</p>
-            <p className="text-neon-magenta text-[10px] font-mono">DJ · Live</p>
-          </div>
-        </div>
-
-        {/* Nav tabs */}
-        <nav className="flex-1 w-full px-2 lg:px-4 space-y-1">
-          <p className="hidden lg:block text-gray-700 text-[9px] uppercase tracking-widest font-mono px-3 mb-3">Gestión</p>
-          {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                activeTab === tab.id
-                  ? "bg-gradient-to-r from-neon-purple/20 to-transparent border-l-4 border-neon-purple text-neon-purple"
-                  : "text-gray-500 hover:text-white hover:bg-white/5 border-l-4 border-transparent"
-              }`}>
-              <NavIcon d={tab.icon} />
-              <div className="hidden lg:block text-left">
-                <p className={`font-bold text-sm ${activeTab === tab.id ? "text-white" : "text-gray-400"}`}>{tab.label}</p>
-                <p className={`text-[10px] font-mono ${activeTab === tab.id ? "text-neon-purple" : "text-gray-600"}`}>
-                  {tab.id === "live" ? `${queued.length} en cola` :
-                   tab.id === "queue" ? `${queued.length} canciones` :
-                   tab.id === "history" ? `${played.length} tocadas` :
-                   `${rejected.length} rechazadas`}
-                </p>
-              </div>
-            </button>
-          ))}
-        </nav>
-
-        {/* Logout */}
-        <div className="p-3 lg:p-4 border-t border-gray-800 w-full">
-          <button onClick={handleLogout}
-            className="w-full flex items-center gap-3 p-3 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20">
-            <NavIcon d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            <span className="hidden lg:block font-bold text-sm">Cerrar sesión</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* ── MAIN ── */}
-      <main className="flex-1 overflow-y-auto flex flex-col">
-
-        {/* Topbar */}
-        <header className="sticky top-0 z-10 bg-black/80 backdrop-blur border-b border-white/5 px-8 py-4 flex justify-between items-center flex-shrink-0">
+    <>
+      <NavbarDJ searchValue={searchTerm} onSearchChange={setSearchTerm} />
+      
+      <main className="min-h-screen pt-24 px-4 md:px-8 lg:px-12 pb-20 max-w-7xl mx-auto">
+        {/* Header con estadísticas */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
           <div>
-            <p className="text-gray-500 text-xs uppercase tracking-widest flex items-center gap-2 font-mono mb-1">
-              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-              LIVE · Neon Overload
+            <div className="flex items-center gap-3">
+              <h2 className="font-headline-lg text-headline-lg text-on-surface">Solicitudes en Cabina</h2>
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/30 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-primary live-indicator"></span>
+                <span className="font-label-md text-[10px] text-primary tracking-widest uppercase">Live Feed</span>
+              </div>
+            </div>
+            <p className="text-on-surface-variant font-body-md text-body-md mt-1">
+              Gestiona las canciones que los usuarios han solicitado. Acepta o elimina según la energía de la pista.
             </p>
-            <h1 className="font-orbitron font-black text-2xl text-white uppercase tracking-wide">
-              {currentTab?.label}
-            </h1>
           </div>
-          {/* Stats rápidas */}
-          <div className="hidden lg:flex gap-4">
-            {[
-              { l:"En cola",     v: queued.length,   c:"text-neon-purple" },
-              { l:"Votos",       v: totalVotes,       c:"text-neon-magenta" },
-              { l:"Ya tocadas",  v: played.length,    c:"text-green-400" },
-              { l:"Rechazadas",  v: rejected.length,  c:"text-red-400" },
-            ].map((s,i) => (
-              <div key={i} className="glass-panel rounded-xl px-4 py-2 border border-white/10 text-center">
-                <p className="text-gray-500 text-[9px] uppercase tracking-widest font-mono mb-0.5">{s.l}</p>
-                <p className={`font-orbitron font-black text-xl ${s.c}`}>{s.v}</p>
+          {/* Stats Widgets */}
+          <div className="flex gap-3 flex-wrap">
+            <div className="glass-card px-4 py-2 rounded-xl flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                <span className="material-symbols-outlined text-primary text-xl">queue_music</span>
+              </div>
+              <div>
+                <p className="text-on-surface-variant font-label-md text-[11px] uppercase tracking-wider">Pendientes</p>
+                <p className="font-stats-number text-stats-number text-on-surface text-2xl leading-tight">{totalPendientes}</p>
+              </div>
+            </div>
+            <div className="glass-card px-4 py-2 rounded-xl flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-secondary-container/20 flex items-center justify-center border border-secondary/20">
+                <span className="material-symbols-outlined text-secondary text-xl">check_circle</span>
+              </div>
+              <div>
+                <p className="text-on-surface-variant font-label-md text-[11px] uppercase tracking-wider">Aceptadas</p>
+                <p className="font-stats-number text-stats-number text-secondary text-2xl leading-tight">{totalAceptadas}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 glass-card p-2 rounded-xl mb-6">
+          <div className="flex gap-1.5 flex-wrap">
+            <button
+              onClick={() => setFilterType("pendientes")}
+              className={`px-4 py-1.5 rounded-lg font-label-md text-label-md active:scale-95 transition-all ${
+                filterType === "pendientes"
+                  ? "bg-primary text-on-primary neon-glow-primary"
+                  : "text-on-surface-variant hover:bg-white/5"
+              }`}
+            >
+              Pendientes {totalPendientes > 0 && `(${totalPendientes})`}
+            </button>
+            <button
+              onClick={() => setFilterType("aceptadas")}
+              className={`px-4 py-1.5 rounded-lg font-label-md text-label-md active:scale-95 transition-all ${
+                filterType === "aceptadas"
+                  ? "bg-primary text-on-primary neon-glow-primary"
+                  : "text-on-surface-variant hover:bg-white/5"
+              }`}
+            >
+              Aceptadas {totalAceptadas > 0 && `(${totalAceptadas})`}
+            </button>
+            <button
+              onClick={() => setFilterType("historial")}
+              className={`px-4 py-1.5 rounded-lg font-label-md text-label-md active:scale-95 transition-all ${
+                filterType === "historial"
+                  ? "bg-primary text-on-primary neon-glow-primary"
+                  : "text-on-surface-variant hover:bg-white/5"
+              }`}
+            >
+              Historial {totalHistorial > 0 && `(${totalHistorial})`}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            {resultadosCount > 0 && (
+              <span className="text-xs text-on-surface-variant font-label-md mr-2">
+                {resultadosCount} {resultadosCount === 1 ? "resultado" : "resultados"}
+              </span>
+            )}
+            <button
+              onClick={cargarCanciones}
+              className="text-on-surface-variant hover:text-primary transition-colors p-1.5 rounded-full hover:bg-white/5"
+              title="Recargar lista"
+            >
+              <span className="material-symbols-outlined text-xl">refresh</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Lista de canciones */}
+        {loading ? (
+          <div className="text-center text-on-surface-variant py-16">
+            <span className="material-symbols-outlined text-5xl opacity-30 animate-pulse">sync</span>
+            <p className="mt-2">Cargando canciones...</p>
+          </div>
+        ) : listaFiltrada.length === 0 ? (
+          <div className="text-center text-on-surface-variant py-16 glass-card rounded-xl p-12">
+            <span className="material-symbols-outlined text-6xl opacity-30">music_off</span>
+            <p className="mt-2 text-lg font-body-md">
+              {filterType === "pendientes" && "No hay canciones pendientes"}
+              {filterType === "aceptadas" && "No has aceptado ninguna canción aún"}
+              {filterType === "historial" && "El historial está vacío"}
+            </p>
+            <p className="text-sm opacity-60 mt-1">
+              {filterType === "pendientes" && "Espera a que los usuarios envíen sus peticiones."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {listaFiltrada.map((cancion, index) => (
+              <div
+                key={cancion.id}
+                className="glass-card p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-primary/40 transition-all hover:bg-surface-container/50 hover:shadow-lg hover:shadow-primary/5 animate-fadeIn"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div
+                    className="w-16 h-16 rounded-lg bg-cover bg-center overflow-hidden flex-shrink-0 border border-white/5"
+                    style={{
+                      backgroundImage: cancion.url && cancion.url.includes("youtube")
+                        ? `url(https://img.youtube.com/vi/${cancion.url.split("v=")[1]?.split("&")[0]}/mqdefault.jpg)`
+                        : `url(https://lh3.googleusercontent.com/aida-public/AB6AXuBk0sQjQVfaPkEFoKxPhgkfjtnUQ4HHp4gA3H4FTaQPCPbBE94BhTFoLThglMV-vOFj8BHlNMkN7NWonvEdOgHHgG9VgpSf4bnK4_NKxiILMUHN_irF6dJwCBzyiIJqn5k5XT-OlIV3hGwaZeAEjtuyMYv4k0ODE7VbP6lwnmVWmso5TqXjIRqfm0woxyFEn_KosYdA309mvagzDhor33fmLvhw-GKE1SDD4jvnNsrIF40JFvaE-uSfv2vkaRIGh4zut6Iev4YXFxio)`
+                    }}
+                  />
+                  <div className="space-y-1 min-w-0">
+                    <h3 className="text-on-surface font-headline-md text-[18px] leading-tight truncate">{cancion.titulo}</h3>
+                    <p className="text-primary font-body-md text-body-md font-semibold">{cancion.artista}</p>
+                    <div className="flex items-center gap-3 text-on-surface-variant font-label-md text-[12px] flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">album</span>
+                        {cancion.album || "—"}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">schedule</span>
+                        {cancion.duracion || "00:00"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {filterType === "pendientes" && (
+                    <>
+                      <button
+                        onClick={() => handleAceptar(cancion)}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-white text-background rounded-full font-label-md text-label-md hover:bg-primary transition-all active:scale-95 shadow-lg shadow-white/10"
+                      >
+                        <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
+                        Aceptar
+                      </button>
+                      <button
+                        onClick={() => handleEliminar(cancion)}
+                        className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-on-error hover:bg-error-container/20 hover:border-error transition-all active:scale-90"
+                        title="Eliminar canción"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </>
+                  )}
+                  {filterType === "aceptadas" && (
+                    <>
+                      <span className="text-secondary font-label-md text-sm flex items-center gap-1">
+                        <span className="material-symbols-outlined text-secondary">check_circle</span>
+                        Aceptada
+                      </span>
+                      <button
+                        onClick={() => handleEliminarAceptada(cancion)}
+                        className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-on-error hover:bg-error-container/20 hover:border-error transition-all active:scale-90"
+                        title="Mover al historial"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </>
+                  )}
+                  {filterType === "historial" && (
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                        cancion.estadoHistorial === "Aceptada"
+                          ? "bg-secondary/20 text-secondary border border-secondary/30"
+                          : "bg-error/20 text-error border border-error/30"
+                      }`}>
+                        {cancion.estadoHistorial || "Eliminada"}
+                      </span>
+                      <span className="text-on-surface-variant font-label-md text-sm flex items-center gap-1">
+                        <span className="material-symbols-outlined text-base">history</span>
+                        {new Date(cancion.timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
-        </header>
+        )}
 
-        <div className="flex-1 p-8">
-
-          {/* ── NOW PLAYING ── */}
-          {playing ? (
-            <div className="glass-panel rounded-2xl p-6 border border-neon-purple/40 mb-8 flex items-center gap-6 bg-gradient-to-r from-neon-purple/10 to-transparent">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-neon-purple to-neon-magenta flex items-center justify-center flex-shrink-0">
-                <Equalizer />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-neon-purple text-[10px] uppercase tracking-widest font-mono mb-1">▶ Sonando ahora · {fmt(timer)}</p>
-                <p className="text-white font-orbitron font-black text-xl truncate">{playing.title}</p>
-                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                  <span className="text-gray-400 text-sm font-mono">{playing.artist}</span>
-                  <span className="text-[10px] px-2 py-0.5 bg-neon-purple/20 border border-neon-purple/40 text-neon-purple rounded-full font-bold">△ {playing.votes} votos</span>
-                  {playing.genre && <span className="text-[10px] px-2 py-0.5 bg-white/5 border border-white/10 text-gray-400 rounded-full">{playing.genre}</span>}
-                </div>
-                {playing.message && (
-                  <p className="text-gray-500 text-xs font-mono italic mt-1">"{playing.message}" — {playing.requestedBy}</p>
-                )}
-              </div>
-              <div className="flex gap-3 flex-shrink-0">
-                {queued.length > 0 && (
-                  <button onClick={() => playSong(queued[0].id)}
-                    className="px-4 py-2 bg-neon-purple/20 border border-neon-purple/40 text-neon-purple rounded-xl text-sm font-bold hover:bg-neon-purple/30 transition-all">
-                    ⏭ Siguiente
-                  </button>
-                )}
-                <button onClick={() => markPlayed(playing.id)}
-                  className="px-4 py-2 bg-green-500/15 border border-green-500/30 text-green-400 rounded-xl text-sm font-bold hover:bg-green-500/25 transition-all">
-                  ✓ Marcar tocada
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="glass-panel rounded-2xl p-6 border border-dashed border-white/10 mb-8 flex items-center gap-5">
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-2xl text-gray-700 flex-shrink-0">♫</div>
-              <div className="flex-1">
-                <p className="text-gray-500 text-sm font-mono">Sin canción sonando ahora</p>
-                <p className="text-gray-700 text-xs font-mono">
-                  {queued.length > 0 ? "Selecciona una canción para comenzar" : "Esperando peticiones del público"}
-                </p>
-              </div>
-              {queued.length > 0 && (
-                <button onClick={() => playSong(queued[0].id)}
-                  className="px-5 py-2.5 bg-neon-purple text-black font-black rounded-xl hover:bg-neon-magenta transition-all shadow-neon-glow text-sm uppercase tracking-widest">
-                  ▶ Poner más votada
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* ── EN VIVO / COLA ── */}
-          {(activeTab === "live" || activeTab === "queue") && (
-            <>
-              {/* Filtros por género */}
-              {allGenres.length > 1 && (
-                <div className="flex gap-2 mb-5 flex-wrap">
-                  {allGenres.map(g => (
-                    <button key={g} onClick={() => setFilter(g)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                        filter === g
-                          ? "border-neon-purple bg-neon-purple/15 text-neon-purple"
-                          : "border-white/10 text-gray-500 hover:border-neon-purple/40 hover:text-neon-purple"
-                      }`}>
-                      {g === "all" ? "Todos" : g}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {filtered.length === 0 ? (
-                <div className="text-center py-20">
-                  <p className="text-gray-600 font-mono text-sm">Sin canciones en la cola</p>
-                </div>
-              ) : (
-                <div className={activeTab === "queue"
-                  ? "grid grid-cols-1 xl:grid-cols-2 gap-4"
-                  : "flex flex-col gap-3"
-                }>
-                  {filtered.map((song, i) => (
-                    <div key={song.id}
-                      className="glass-panel rounded-2xl border border-white/8 hover:border-neon-purple/40 transition-all p-4 flex items-center gap-4">
-                      {/* Rank / vote bar */}
-                      <div className="flex flex-col items-center gap-1 flex-shrink-0 w-8">
-                        <span className={`font-orbitron font-black text-sm ${i===0?"text-neon-purple":"text-gray-700"}`}>#{i+1}</span>
-                        <div className="w-1 h-10 rounded-full bg-white/5 relative overflow-hidden">
-                          <div className="absolute bottom-0 left-0 right-0 rounded-full bg-gradient-to-t from-neon-purple to-neon-magenta transition-all duration-500"
-                            style={{ height:`${Math.min(100,(song.votes/Math.max(...filtered.map(s=>s.votes),1))*100)}%` }} />
-                        </div>
-                      </div>
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <p className="text-white font-bold text-sm truncate">{song.title}</p>
-                          {i === 0 && <span className="text-[9px] px-1.5 py-0.5 bg-neon-purple/20 border border-neon-purple/40 text-neon-purple rounded font-black">TOP</span>}
-                          {song.genre && <span className="text-[9px] px-1.5 py-0.5 bg-white/5 border border-white/10 text-gray-500 rounded">{song.genre}</span>}
-                        </div>
-                        <p className="text-gray-500 text-xs font-mono">{song.artist} · pedida por {song.requestedBy}</p>
-                        {song.message && <p className="text-gray-600 text-xs italic mt-0.5 font-mono">"{song.message}"</p>}
-                      </div>
-                      {/* Votes */}
-                      <div className="text-center flex-shrink-0 min-w-[48px]">
-                        <p className="font-orbitron font-black text-xl text-neon-purple">{song.votes}</p>
-                        <p className="text-gray-700 text-[9px] font-mono uppercase">votos</p>
-                      </div>
-                      {/* Actions */}
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button onClick={() => playSong(song.id)}
-                          className="px-3 py-2 bg-neon-purple text-black text-xs font-black rounded-xl hover:bg-neon-magenta transition-all">
-                          ▶
-                        </button>
-                        <button onClick={() => rejectSong(song.id)}
-                          className="px-3 py-2 bg-red-500/10 border border-red-500/25 text-red-400 text-xs font-bold rounded-xl hover:bg-red-500/20 transition-all">
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ── HISTORIAL ── */}
-          {activeTab === "history" && (
-            <div className="flex flex-col gap-3 max-w-2xl">
-              {played.length === 0 ? (
-                <div className="text-center py-20">
-                  <p className="text-gray-600 font-mono text-sm">Nada tocado aún esta noche</p>
-                </div>
-              ) : (
-                [...played].reverse().map(song => (
-                  <div key={song.id}
-                    className="glass-panel rounded-xl border border-white/5 p-4 flex items-center gap-4 opacity-70">
-                    <span className="text-green-400/50 font-mono text-sm w-5 flex-shrink-0">✓</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-gray-400 font-bold text-sm truncate">{song.title}</p>
-                      <p className="text-gray-600 text-xs font-mono">{song.artist} · {song.votes} votos</p>
-                    </div>
-                    <span className="text-[10px] px-2 py-0.5 border border-green-400/30 text-green-400 rounded font-bold">TOCADA</span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* ── RECHAZADAS ── */}
-          {activeTab === "rejected" && (
-            <div className="flex flex-col gap-3 max-w-2xl">
-              {rejected.length === 0 ? (
-                <div className="text-center py-20">
-                  <p className="text-gray-600 font-mono text-sm">Sin canciones rechazadas</p>
-                </div>
-              ) : (
-                rejected.map(song => (
-                  <div key={song.id}
-                    className="glass-panel rounded-xl border border-red-500/15 p-4 flex items-center gap-4">
-                    <span className="text-red-400 font-mono text-sm w-5 flex-shrink-0">✕</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-gray-400 font-bold text-sm truncate">{song.title}</p>
-                      <p className="text-gray-600 text-xs font-mono">{song.artist} · {song.requestedBy}</p>
-                      {song.message && <p className="text-gray-700 text-xs italic font-mono">"{song.message}"</p>}
-                    </div>
-                    <button onClick={() => restoreSong(song.id)}
-                      className="px-3 py-2 bg-neon-purple/10 border border-neon-purple/25 text-neon-purple text-xs font-bold rounded-xl hover:bg-neon-purple/20 transition-all flex-shrink-0">
-                      ↩ Restaurar
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-        </div>
+        {/* Fondo atmosférico */}
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary/10 blur-[120px] -z-10 rounded-full"></div>
+        <div className="absolute top-1/2 left-0 w-64 h-64 bg-secondary-container/5 blur-[100px] -z-10 rounded-full"></div>
       </main>
-    </div>
+
+      {/* ===== TOAST ===== */}
+      {toast.visible && (
+        <div className={`fixed bottom-24 right-6 glass-card rounded-xl px-4 py-2.5 flex items-center gap-3 transition-all duration-300 z-[100] border ${
+          toast.tipo === "error" ? "border-error/30" : "border-primary/30"
+        } shadow-lg`}>
+          <span className="material-symbols-outlined text-primary">check_circle</span>
+          <div>
+            <p className="text-on-surface font-bold text-sm">{toast.mensaje}</p>
+          </div>
+        </div>
+      )}
+
+      {/* ===== ESTILOS ADICIONALES ===== */}
+      <style jsx>{`
+        body, html {
+          background-color: #0e0e0e !important;
+          margin: 0;
+          padding: 0;
+        }
+
+        .min-h-screen { min-height: 100vh; }
+        .pt-24 { padding-top: 6rem; }
+        .max-w-7xl { max-width: 80rem; }
+        .mx-auto { margin-left: auto; margin-right: auto; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .md\\:px-8 { padding-left: 2rem; padding-right: 2rem; }
+        .lg\\:px-12 { padding-left: 3rem; padding-right: 3rem; }
+        .pb-20 { padding-bottom: 5rem; }
+
+        .font-headline-lg {
+          font-family: 'Montserrat', sans-serif;
+          font-size: 32px;
+          line-height: 40px;
+          letter-spacing: -0.01em;
+          font-weight: 700;
+        }
+        .text-headline-lg {
+          font-size: 32px;
+          line-height: 40px;
+          letter-spacing: -0.01em;
+          font-weight: 700;
+        }
+        .font-body-md {
+          font-family: 'Inter', sans-serif;
+          font-size: 16px;
+          line-height: 24px;
+          font-weight: 400;
+        }
+        .text-body-md {
+          font-size: 16px;
+          line-height: 24px;
+          font-weight: 400;
+        }
+        .font-label-md {
+          font-family: 'Inter', sans-serif;
+          font-size: 14px;
+          line-height: 20px;
+          letter-spacing: 0.05em;
+          font-weight: 600;
+        }
+        .text-label-md {
+          font-size: 14px;
+          line-height: 20px;
+          letter-spacing: 0.05em;
+          font-weight: 600;
+        }
+        .font-stats-number {
+          font-family: 'Montserrat', sans-serif;
+          font-size: 36px;
+          line-height: 44px;
+          font-weight: 700;
+        }
+        .text-stats-number {
+          font-size: 36px;
+          line-height: 44px;
+          font-weight: 700;
+        }
+        .text-2xl {
+          font-size: 1.5rem;
+          line-height: 2rem;
+        }
+        .text-xl {
+          font-size: 1.25rem;
+          line-height: 1.75rem;
+        }
+        .text-lg {
+          font-size: 1.125rem;
+          line-height: 1.75rem;
+        }
+        .text-sm {
+          font-size: 0.875rem;
+          line-height: 1.25rem;
+        }
+        .text-xs {
+          font-size: 0.75rem;
+          line-height: 1rem;
+        }
+        .text-\\[11px\\] {
+          font-size: 11px;
+        }
+        .text-\\[10px\\] {
+          font-size: 10px;
+        }
+        .text-\\[18px\\] {
+          font-size: 18px;
+        }
+        .text-\\[14px\\] {
+          font-size: 14px;
+        }
+        .text-\\[12px\\] {
+          font-size: 12px;
+        }
+        .leading-tight {
+          line-height: 1.25;
+        }
+
+        .text-primary { color: #e9b3ff; }
+        .text-on-surface { color: #e5e2e1; }
+        .text-on-surface-variant { color: #d2c1d4; }
+        .text-secondary { color: #ffb2b7; }
+        .text-on-error { color: #690005; }
+        .text-error { color: #ffb4ab; }
+        .text-on-primary { color: #510074; }
+
+        .bg-primary { background-color: #e9b3ff; }
+        .bg-primary\\/10 { background-color: rgba(233,179,255,0.1); }
+        .bg-primary\\/20 { background-color: rgba(233,179,255,0.2); }
+        .bg-secondary-container\\/20 { background-color: rgba(208,2,66,0.2); }
+        .bg-surface-container { background-color: #201f1f; }
+        .bg-surface-container-high { background-color: #2a2a2a; }
+        .bg-white { background-color: #ffffff; }
+        .bg-white\\/5 { background-color: rgba(255,255,255,0.05); }
+        .bg-error-container\\/20 { background-color: rgba(147,0,10,0.2); }
+        .bg-error\\/20 { background-color: rgba(255,180,171,0.2); }
+        .bg-secondary\\/20 { background-color: rgba(255,178,183,0.2); }
+        .bg-surface-container\\/50 { background-color: rgba(32,31,31,0.5); }
+        .bg-background { background-color: #131313; }
+
+        .border-white\\/10 { border-color: rgba(255,255,255,0.1); }
+        .border-white\\/5 { border-color: rgba(255,255,255,0.05); }
+        .border-primary\\/20 { border-color: rgba(233,179,255,0.2); }
+        .border-primary\\/30 { border-color: rgba(233,179,255,0.3); }
+        .border-primary\\/40 { border-color: rgba(233,179,255,0.4); }
+        .border-secondary\\/20 { border-color: rgba(255,178,183,0.2); }
+        .border-secondary\\/30 { border-color: rgba(255,178,183,0.3); }
+        .border-error { border-color: #ffb4ab; }
+        .border-error\\/30 { border-color: rgba(255,180,171,0.3); }
+        .border-error\\/20 { border-color: rgba(255,180,171,0.2); }
+
+        .glass-card {
+          background: rgba(28, 28, 30, 0.7);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-top: 1px solid rgba(255, 255, 255, 0.15);
+          transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+          border-color: rgba(233, 179, 255, 0.3);
+        }
+
+        .neon-glow-primary {
+          box-shadow: 0 0 15px rgba(233,179,255,0.3);
+        }
+
+        .rounded-full { border-radius: 9999px; }
+        .rounded-xl { border-radius: 0.75rem; }
+        .rounded-lg { border-radius: 0.5rem; }
+
+        .transition-all { transition: all 0.3s ease; }
+        .duration-200 { transition-duration: 200ms; }
+        .duration-300 { transition-duration: 300ms; }
+        .active\\:scale-95:active { transform: scale(0.95); }
+        .active\\:scale-90:active { transform: scale(0.9); }
+        .hover\\:bg-surface-container\\/50:hover { background-color: rgba(32,31,31,0.5); }
+        .hover\\:border-primary\\/40:hover { border-color: rgba(233,179,255,0.4); }
+        .hover\\:border-error:hover { border-color: #ffb4ab; }
+        .hover\\:bg-white\\/5:hover { background-color: rgba(255,255,255,0.05); }
+        .hover\\:bg-error-container\\/20:hover { background-color: rgba(147,0,10,0.2); }
+        .hover\\:bg-primary:hover { background-color: #e9b3ff; }
+        .hover\\:shadow-lg:hover { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
+        .hover\\:shadow-primary\\/5:hover { box-shadow: 0 0 15px rgba(233,179,255,0.05); }
+
+        .live-indicator {
+          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: .5; transform: scale(0.9); }
+        }
+
+        .animate-pulse {
+          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.4s ease forwards;
+        }
+        @keyframes fadeIn {
+          0% { opacity: 0; transform: translateY(10px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .material-symbols-outlined {
+          font-family: "Material Symbols Outlined";
+          font-weight: normal;
+          font-style: normal;
+          font-size: 24px;
+          line-height: 1;
+          letter-spacing: normal;
+          text-transform: none;
+          display: inline-block;
+          white-space: nowrap;
+          word-wrap: normal;
+          direction: ltr;
+          -webkit-font-feature-settings: "liga";
+          -webkit-font-smoothing: antialiased;
+        }
+
+        .gap-base { gap: 8px; }
+        .gap-sm { gap: 12px; }
+        .gap-md { gap: 24px; }
+        .gap-1 { gap: 4px; }
+        .gap-1\\.5 { gap: 6px; }
+        .gap-2 { gap: 8px; }
+        .gap-3 { gap: 12px; }
+        .gap-4 { gap: 16px; }
+        .space-y-1 > * + * { margin-top: 4px; }
+        .space-y-md > * + * { margin-top: 24px; }
+        .space-y-xs > * + * { margin-top: 4px; }
+        .mt-1 { margin-top: 4px; }
+        .mt-2 { margin-top: 8px; }
+        .mb-6 { margin-bottom: 24px; }
+        .mr-2 { margin-right: 8px; }
+        .px-4 { padding-left: 1rem; padding-right: 1rem; }
+        .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+        .py-1 { padding-top: 4px; padding-bottom: 4px; }
+        .py-1\\.5 { padding-top: 6px; padding-bottom: 6px; }
+        .py-2 { padding-top: 8px; padding-bottom: 8px; }
+        .py-2\\.5 { padding-top: 10px; padding-bottom: 10px; }
+        .p-2 { padding: 8px; }
+        .p-4 { padding: 16px; }
+        .p-12 { padding: 48px; }
+        .pt-24 { padding-top: 6rem; }
+        .pb-20 { padding-bottom: 5rem; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .flex-wrap { flex-wrap: wrap; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .fixed { position: fixed; }
+        .inset-0 { top:0; right:0; bottom:0; left:0; }
+        .bottom-0 { bottom: 0; }
+        .bottom-24 { bottom: 6rem; }
+        .right-0 { right: 0; }
+        .right-6 { right: 1.5rem; }
+        .right-8 { right: 2rem; }
+        .left-0 { left: 0; }
+        .top-1\\/2 { top: 50%; }
+        .-z-10 { z-index: -10; }
+        .z-10 { z-index: 10; }
+        .z-\\[100\\] { z-index: 100; }
+        .overflow-hidden { overflow: hidden; }
+        .bg-cover { background-size: cover; }
+        .bg-center { background-position: center; }
+        .shrink-0 { flex-shrink: 0; }
+        .flex-1 { flex: 1; }
+        .min-w-0 { min-width: 0; }
+        .blur-\\[120px\\] { filter: blur(120px); }
+        .blur-\\[100px\\] { filter: blur(100px); }
+        .pointer-events-none { pointer-events: none; }
+        .tracking-widest { letter-spacing: 0.1em; }
+        .tracking-tighter { letter-spacing: -0.05em; }
+        .tracking-wider { letter-spacing: 0.05em; }
+        .uppercase { text-transform: uppercase; }
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+        .border-none { border: none; }
+        .focus\\:ring-0:focus { outline: none; box-shadow: none; }
+        .focus\\:ring-1:focus { outline: none; box-shadow: 0 0 0 1px #e9b3ff; }
+        .focus\\:ring-primary:focus { --tw-ring-color: #e9b3ff; }
+        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
+        .shadow-primary\\/5 { box-shadow: 0 0 15px rgba(233,179,255,0.05); }
+        .shadow-white\\/10 { box-shadow: 0 0 15px rgba(255,255,255,0.1); }
+
+        @media (min-width: 768px) {
+          .md\\:flex-row { flex-direction: row; }
+          .md\\:items-center { align-items: center; }
+          .md\\:p-margin-desktop { padding: 48px; }
+          .md\\:px-8 { padding-left: 2rem; padding-right: 2rem; }
+        }
+        @media (min-width: 1024px) {
+          .lg\\:flex-row { flex-direction: row; }
+          .lg\\:items-center { align-items: center; }
+          .lg\\:px-12 { padding-left: 3rem; padding-right: 3rem; }
+        }
+      `}</style>
+    </>
   );
-}
+};
+
+export default DjCanciones;
