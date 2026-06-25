@@ -5,6 +5,11 @@ import "./assets/css/style.css"
 // Auth guards
 import PrivateRoute  from "./components/Auth/PrivateRoute"
 import PublicRoute   from "./components/Auth/PublicRoute"
+import Canciones from './pages/Private/Admin/canciones';
+import AdminHorarios from "./pages/Private/Admin/horario"
+
+
+
 
 // Public pages
 const HomePage       = lazy(() => import("./pages/public/Home"))
@@ -14,10 +19,23 @@ const ForgotPassword = lazy(() => import("./pages/public/ForgotPasswordPage"))
 const ResetPassword  = lazy(() => import("./pages/public/ResetPasswordPage"))
 
 // Private — Admin
-const AdminDashboard = lazy(() => import("./pages/Private/Admin/Dashboard"))
+const Overview = lazy(() => import("./pages/Private/Admin/Overview"))
+const AdminReservas = lazy(() => import("./pages/Private/Admin/Reservas"))
+const horarioService = lazy(() => import("./pages/Private/Admin/horario"))
+const AdminUsuarios = lazy(() => import("./pages/Private/Admin/usuarios"))
+const AdminVentas = lazy(() => import("./pages/Private/Admin/ventas"))
+const AdminProductos = lazy(() => import("./pages/Private/Admin/productos"))
+const AdminEventos = lazy(() => import("./pages/Private/Admin/eventos"))
+
 
 // Private — User
-const UserDashboard = lazy(() => import("./pages/Private/User/Dashboard"))
+const HomePageUser = lazy(() => import("./pages/Private/User/dashboard"))
+const UserCanciones = lazy(() => import("./pages/Private/User/userCancion"))
+const UserReservas = lazy(() => import("./pages/Private/User/reserva"))
+const UserEventos = lazy(() => import("./pages/Private/User/eventos"))
+const UserMenu = lazy(() => import("./pages/Private/User/menu"))
+
+
 
 // Private — DJ
 const DJPanel = lazy(() => import("./pages/Private/DJ/DJPanel"))
@@ -26,6 +44,7 @@ const DJPanel = lazy(() => import("./pages/Private/DJ/DJPanel"))
 const EmployeeDashboard = lazy(() => import("./pages/Private/Employee/EmployeeDashboard"))
 
 function App() {
+  
   return (
     <Suspense fallback={
       <div style={{ minHeight: "100vh", background: "#080810", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -51,17 +70,26 @@ function App() {
       } />
 
       {/* ── Private — Admin ── */}
-      <Route path="/admin" element={
-        <AdminDashboard />
-      } />
-
-      {/* ── Private — User (solo rol "usuario") ── */}
-      <Route path="/dashboard" element={
-        <PrivateRoute role="usuario"><UserDashboard /></PrivateRoute>
-      } />
-      <Route path="/profile" element={
-        <PrivateRoute role="usuario"><UserDashboard initialPage="profile" /></PrivateRoute>
-      } />
+      <Route path="/admin" element={<Overview/>} />
+      
+      <Route path="/admin/canciones" element={<Canciones />} />
+      <Route path="/admin/reservas" element={<AdminReservas />} />
+      <Route path="/admin/horarios" element={<AdminHorarios />} />
+      <Route path="/admin/usuarios" element={<AdminUsuarios />} />
+      <Route path="/admin/ventas" element={<AdminVentas />} />
+      <Route path="/admin/productos" element={<AdminProductos />} />
+      <Route path="/admin/eventos" element={<AdminEventos />} />
+      
+    {/* usuario */}
+    <Route path="/usuario" element={<HomePageUser />} />
+    <Route path="/usuario/cancion" element={<UserCanciones />} />
+    <Route path="/usuario/reserva" element={<UserReservas />} />
+    <Route path="/usuario/evento" element={<UserEventos />} />
+    <Route path="/usuario/menu" element={<UserMenu />} />
+    
+    
+    
+      
 
       {/* ── Private — DJ Panel ── */}
       <Route path="/dj" element={

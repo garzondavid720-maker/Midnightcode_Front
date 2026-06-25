@@ -1,0 +1,31 @@
+/* Estilos personalizados del HTML original */
+.glass-card {
+  background: rgba(28, 28, 30, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+.glass-card:hover {
+  border: 1px solid rgba(233, 179, 255, 0.3);
+  box-shadow: 0 0 20px rgba(233, 179, 255, 0.1);
+}
+.neon-glow-primary {
+  box-shadow: 0 0 12px rgba(233, 179, 255, 0.3);
+}
+.neon-border-active {
+  border: 1px solid #e9b3ff;
+  box-shadow: 0 0 12px rgba(233, 179, 255, 0.3);
+}
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #131313;
+}
+::-webkit-scrollbar-thumb {
+  background: #353534;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #e9b3ff;
+}
