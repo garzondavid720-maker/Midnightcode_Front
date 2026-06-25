@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { reservaService } from "../../../services/reservaService";
 import { mesaService } from "../../../services/mesaService";
 import { parqueaderoService } from "../../../services/parqueaderoService";
+import NavbarAdmin from "../../../components/Layout/NavbarHeader";
 
 // Servicio simulado para covers (tarima)
 const coverService = {
@@ -31,7 +32,7 @@ const coverService = {
 };
 
 const AdminReservas = () => {
-  // ===== ESTADOS (igual que antes) =====
+  // ===== ESTADOS =====
   const [reservas, setReservas] = useState([]);
   const [mesas, setMesas] = useState([]);
   const [parqueaderos, setParqueaderos] = useState([]);
@@ -41,6 +42,9 @@ const AdminReservas = () => {
 
   const [modalRecursosAbierto, setModalRecursosAbierto] = useState(false);
   const [tabRecursos, setTabRecursos] = useState("mesas");
+
+  // Modal de detalles de recursos
+  const [modalDetallesAbierto, setModalDetallesAbierto] = useState(false);
 
   const [mesaEditando, setMesaEditando] = useState(null);
   const [mesaForm, setMesaForm] = useState({ id: null, nombre: "", capacidad: 4, descripcion: "", cover: "" });
@@ -53,6 +57,13 @@ const AdminReservas = () => {
 
   const [toast, setToast] = useState({ visible: false, mensaje: "", tipo: "" });
   const [toastConfirm, setToastConfirm] = useState({ visible: false, mensaje: "" });
+
+  // ===== VALIDACIÓN DE NOMBRES DUPLICADOS =====
+  const nombreDuplicado = (lista, nombre, id = null) => {
+    return lista.some(item => 
+      item.nombre?.toLowerCase() === nombre?.toLowerCase().trim() && item.id !== id
+    );
+  };
 
   // ===== CARGAR DATOS =====
   useEffect(() => {
@@ -142,7 +153,7 @@ const AdminReservas = () => {
     }
   };
 
-  // ===== GESTIÓN DE MESAS =====
+  // ===== GESTIÓN DE RECURSOS =====
   const abrirModalRecursos = () => {
     setModalRecursosAbierto(true);
     setTabRecursos("mesas");
@@ -173,8 +184,22 @@ const AdminReservas = () => {
     setCoverEditando(null);
   };
 
+  // ===== HANDLERS DE MESAS =====
   const handleMesaSubmit = async (e) => {
     e.preventDefault();
+    if (!mesaForm.nombre.trim()) {
+      mostrarToast("El nombre de la mesa es obligatorio", "error");
+      return;
+    }
+    if (mesaForm.capacidad < 1) {
+      mostrarToast("La capacidad debe ser al menos 1", "error");
+      return;
+    }
+    if (nombreDuplicado(mesas, mesaForm.nombre, mesaEditando?.id)) {
+      mostrarToast("Ya existe una mesa con ese nombre", "error");
+      return;
+    }
+
     if (mesaEditando) {
       try {
         const updated = await mesaService.update(mesaEditando.id, mesaForm);
@@ -237,9 +262,18 @@ const AdminReservas = () => {
     }
   };
 
-  // ===== GESTIÓN DE PARQUEADEROS =====
+  // ===== HANDLERS DE PARQUEADEROS =====
   const handleParqSubmit = async (e) => {
     e.preventDefault();
+    if (!parqForm.nombre.trim()) {
+      mostrarToast("El nombre del parqueadero es obligatorio", "error");
+      return;
+    }
+    if (nombreDuplicado(parqueaderos, parqForm.nombre, parqEditando?.id)) {
+      mostrarToast("Ya existe un parqueadero con ese nombre", "error");
+      return;
+    }
+
     if (parqEditando) {
       try {
         const updated = await parqueaderoService.update(parqEditando.id, parqForm);
@@ -302,9 +336,22 @@ const AdminReservas = () => {
     }
   };
 
-  // ===== GESTIÓN DE COVERS =====
+  // ===== HANDLERS DE COVERS =====
   const handleCoverSubmit = async (e) => {
     e.preventDefault();
+    if (!coverForm.nombre.trim()) {
+      mostrarToast("El nombre del cover es obligatorio", "error");
+      return;
+    }
+    if (coverForm.capacidad < 1) {
+      mostrarToast("La capacidad debe ser al menos 1", "error");
+      return;
+    }
+    if (nombreDuplicado(covers, coverForm.nombre, coverEditando?.id)) {
+      mostrarToast("Ya existe un cover con ese nombre", "error");
+      return;
+    }
+
     if (coverEditando) {
       try {
         const updated = await coverService.update(coverEditando.id, coverForm);
@@ -406,10 +453,30 @@ const AdminReservas = () => {
     r.cliente?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // ===== RENDER =====
+  // ===== FUNCIONES PARA EL MODAL DE DETALLES =====
+  const abrirModalDetalles = () => setModalDetallesAbierto(true);
+  const cerrarModalDetalles = () => setModalDetallesAbierto(false);
+
+  // Obtener estado de un recurso
+  const getEstadoRecurso = (tipo, id) => {
+    // Buscar reserva activa para este recurso
+    const reserva = reservasActivas.find(r => {
+      if (tipo === "mesa") return r.mesaId === id;
+      if (tipo === "cover") return r.coverId === id;
+      if (tipo === "parqueadero") return r.parqueaderoId === id;
+      return false;
+    });
+    if (!reserva) return { estado: "disponible", color: "bg-green-500", label: "Disponible", reserva: null };
+    if (reserva.estado === "Confirmado") return { estado: "ocupado", color: "bg-red-500", label: "Ocupado", reserva };
+    if (reserva.estado === "Pendiente") return { estado: "pendiente", color: "bg-yellow-500", label: "Pendiente", reserva };
+    return { estado: "disponible", color: "bg-green-500", label: "Disponible", reserva: null };
+  };
+
   return (
     <>
-      {/* ===== ESTILOS PERSONALIZADOS (IDÉNTICOS AL HTML ORIGINAL) ===== */}
+      <NavbarAdmin />
+
+      {/* ===== ESTILOS ===== */}
       <style>{`
         body {
           background-color: #050505;
@@ -450,7 +517,6 @@ const AdminReservas = () => {
           100% { opacity: 0.1; }
         }
 
-        /* Clases de color y utilidades (mapeo de variables) */
         .bg-surface { background-color: #131313; }
         .bg-surface-container { background-color: #201f1f; }
         .bg-surface-container-high { background-color: #2a2a2a; }
@@ -473,24 +539,23 @@ const AdminReservas = () => {
         .text-on-error { color: #690005; }
         .border-primary { border-color: #e9b3ff; }
         .border-secondary { border-color: #ffb2b7; }
-        .border-white\\/10 { border-color: rgba(255,255,255,0.1); }
-        .border-white\\/5 { border-color: rgba(255,255,255,0.05); }
-        .bg-white\\/5 { background-color: rgba(255,255,255,0.05); }
-        .bg-white\\/10 { background-color: rgba(255,255,255,0.1); }
-        .bg-primary\\/5 { background-color: rgba(233,179,255,0.05); }
-        .bg-primary\\/10 { background-color: rgba(233,179,255,0.1); }
-        .bg-primary\\/20 { background-color: rgba(233,179,255,0.2); }
-        .bg-secondary\\/10 { background-color: rgba(255,178,183,0.1); }
-        .bg-secondary\\/20 { background-color: rgba(255,178,183,0.2); }
-        .bg-tertiary\\/20 { background-color: rgba(231,196,72,0.2); }
-        .bg-surface-container-highest\\/50 { background-color: rgba(53,53,52,0.5); }
-        .shadow-primary\\/20 { box-shadow: 0 4px 14px rgba(233,179,255,0.2); }
-        .shadow-\\[0_0_8px_\\#ffb2b7\\] { box-shadow: 0 0 8px #ffb2b7; }
-        .shadow-\\[0_0_5px_\\#e9b3ff\\] { box-shadow: 0 0 5px #e9b3ff; }
-        .shadow-\\[0_0_20px_rgba\\(233\\,179\\,255\\,0\\.1\\)\\] { box-shadow: 0 0 20px rgba(233,179,255,0.1); }
-        .bg-error\\/20 { background-color: rgba(255,180,171,0.2); }
+        .border-white/10 { border-color: rgba(255,255,255,0.1); }
+        .border-white/5 { border-color: rgba(255,255,255,0.05); }
+        .bg-white/5 { background-color: rgba(255,255,255,0.05); }
+        .bg-white/10 { background-color: rgba(255,255,255,0.1); }
+        .bg-primary/5 { background-color: rgba(233,179,255,0.05); }
+        .bg-primary/10 { background-color: rgba(233,179,255,0.1); }
+        .bg-primary/20 { background-color: rgba(233,179,255,0.2); }
+        .bg-secondary/10 { background-color: rgba(255,178,183,0.1); }
+        .bg-secondary/20 { background-color: rgba(255,178,183,0.2); }
+        .bg-tertiary/20 { background-color: rgba(231,196,72,0.2); }
+        .bg-surface-container-highest/50 { background-color: rgba(53,53,52,0.5); }
+        .shadow-primary/20 { box-shadow: 0 4px 14px rgba(233,179,255,0.2); }
+        .shadow-[0_0_8px_#ffb2b7] { box-shadow: 0 0 8px #ffb2b7; }
+        .shadow-[0_0_5px_#e9b3ff] { box-shadow: 0 0 5px #e9b3ff; }
+        .shadow-[0_0_20px_rgba(233,179,255,0.1)] { box-shadow: 0 0 20px rgba(233,179,255,0.1); }
+        .bg-error/20 { background-color: rgba(255,180,171,0.2); }
 
-        /* Fuentes y tamaños */
         .font-headline-lg { font-family: 'Montserrat', sans-serif; }
         .font-headline-md { font-family: 'Montserrat', sans-serif; }
         .font-body-md { font-family: 'Inter', sans-serif; }
@@ -505,10 +570,9 @@ const AdminReservas = () => {
         .text-stats-number { font-size: 36px; line-height: 44px; font-weight: 700; }
         .text-display-lg { font-size: 48px; line-height: 56px; letter-spacing: -0.02em; font-weight: 800; }
 
-        /* Espaciado */
         .px-margin-mobile { padding-left: 16px; padding-right: 16px; }
         .px-margin-desktop { padding-left: 48px; padding-right: 48px; }
-        .pt-24 { padding-top: 6rem; }
+        .pt-20 { padding-top: 5rem; }
         .pb-xl { padding-bottom: 64px; }
         .gap-gutter { gap: 24px; }
         .gap-base { gap: 8px; }
@@ -533,7 +597,6 @@ const AdminReservas = () => {
         .mt-md { margin-top: 24px; }
         .mr-xs { margin-right: 4px; }
         .ml-sm { margin-left: 12px; }
-
         .w-64 { width: 16rem; }
         .w-full { width: 100%; }
         .h-full { height: 100%; }
@@ -564,7 +627,7 @@ const AdminReservas = () => {
         .overflow-x-auto { overflow-x: auto; }
         .border-collapse { border-collapse: collapse; }
         .divide-y > * + * { border-top-width: 1px; }
-        .divide-white\\/5 > * + * { border-color: rgba(255,255,255,0.05); }
+        .divide-white/5 > * + * { border-color: rgba(255,255,255,0.05); }
         .space-y-xs > * + * { margin-top: 4px; }
         .space-y-sm > * + * { margin-top: 12px; }
         .space-y-md > * + * { margin-top: 24px; }
@@ -576,19 +639,19 @@ const AdminReservas = () => {
         .col-span-4 { grid-column: span 4 / span 4; }
         .row-span-2 { grid-row: span 2 / span 2; }
         .aspect-square { aspect-ratio: 1 / 1; }
-        .bg-black\\/70 { background-color: rgba(0,0,0,0.7); }
+        .bg-black/70 { background-color: rgba(0,0,0,0.7); }
         .backdrop-blur-sm { backdrop-filter: blur(4px); }
         .backdrop-blur-xl { backdrop-filter: blur(16px); }
         .backdrop-blur-2xl { backdrop-filter: blur(40px); }
-        .focus\\:border-primary\\/50:focus { border-color: rgba(233,179,255,0.5); }
+        .focus\\:border-primary/50:focus { border-color: rgba(233,179,255,0.5); }
         .focus\\:ring-0:focus { outline: none; box-shadow: none; }
-        .hover\\:bg-secondary\\/20:hover { background-color: rgba(255,178,183,0.2); }
-        .hover\\:bg-primary\\/10:hover { background-color: rgba(233,179,255,0.1); }
-        .hover\\:bg-white\\/5:hover { background-color: rgba(255,255,255,0.05); }
+        .hover\\:bg-secondary/20:hover { background-color: rgba(255,178,183,0.2); }
+        .hover\\:bg-primary/10:hover { background-color: rgba(233,179,255,0.1); }
+        .hover\\:bg-white/5:hover { background-color: rgba(255,255,255,0.05); }
         .hover\\:bg-surface-variant:hover { background-color: #353534; }
         .hover\\:text-primary:hover { color: #e9b3ff; }
         .hover\\:text-on-surface:hover { color: #e5e2e1; }
-        .group-hover\\:text-primary\\/10 .group:hover { color: rgba(233,179,255,0.1); }
+        .group-hover\\:text-primary/10 .group:hover { color: rgba(233,179,255,0.1); }
         .active\\:translate-x-1:active { transform: translateX(4px); }
         .active\\:scale-95:active { transform: scale(0.95); }
         .bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)); }
@@ -637,12 +700,11 @@ const AdminReservas = () => {
         @media (min-width: 768px) {
           .md\\:flex { display: flex; }
           .md\\:hidden { display: none; }
-          .md\\:ml-64 { margin-left: 16rem; }
+          .md\\:px-margin-desktop { padding-left: 48px; padding-right: 48px; }
           .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           .md\\:col-span-2 { grid-column: span 2 / span 2; }
           .md\\:flex-row { flex-direction: row; }
           .md\\:items-end { align-items: flex-end; }
-          .md\\:px-margin-desktop { padding-left: 48px; padding-right: 48px; }
         }
         @media (min-width: 1024px) {
           .lg\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -650,79 +712,8 @@ const AdminReservas = () => {
         }
       `}</style>
 
-      {/* ===== SIDEBAR ===== */}
-      <aside className="fixed left-0 top-0 h-full w-64 z-40 bg-surface-container/80 backdrop-blur-2xl border-r border-white/10 shadow-xl flex flex-col py-lg gap-base hidden md:flex">
-        <div className="px-md mb-lg">
-          <h1 className="font-headline-lg text-headline-lg text-primary tracking-tight">Afterdark Pulse</h1>
-          <p className="font-label-md text-label-md text-on-surface-variant opacity-70">Management Hub</p>
-        </div>
-        <nav className="flex-1 px-sm space-y-xs">
-          <a className="flex items-center gap-sm px-md py-sm font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all duration-150 active:translate-x-1" href="#">
-            <span className="material-symbols-outlined">dashboard</span> Dashboard
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm font-label-md text-label-md text-primary border-r-2 border-primary bg-primary/5 transition-all duration-150 active:translate-x-1" href="#">
-            <span className="material-symbols-outlined">event_seat</span> Reservations
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all duration-150 active:translate-x-1" href="#">
-            <span className="material-symbols-outlined">layers</span> VIP Floor
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all duration-150 active:translate-x-1" href="#">
-            <span className="material-symbols-outlined">monitoring</span> Analytics
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all duration-150 active:translate-x-1" href="#">
-            <span className="material-symbols-outlined">group</span> Users
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all duration-150 active:translate-x-1" href="#">
-            <span className="material-symbols-outlined">calendar_today</span> Events/Schedules
-          </a>
-        </nav>
-        <div className="px-sm mt-auto pt-lg border-t border-white/5">
-          <a className="flex items-center gap-sm px-md py-sm font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all" href="#">
-            <span className="material-symbols-outlined">help</span> Support
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all" href="/home">
-            <span className="material-symbols-outlined">logout</span> Logout
-          </a>
-        </div>
-      </aside>
-
-      {/* ===== HEADER ===== */}
-      <header className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-xl border-b border-white/10 shadow-[0_0_20px_rgba(233,179,255,0.1)] flex justify-between items-center px-margin-desktop h-20">
-        <div className="flex items-center gap-lg">
-          <div className="md:hidden">
-            <span className="material-symbols-outlined text-primary">menu</span>
-          </div>
-          <div className="relative flex items-center bg-surface-container-high rounded-full px-md py-xs border border-white/5 focus-within:border-primary/50 transition-colors w-64">
-            <span className="material-symbols-outlined text-on-surface-variant text-sm mr-xs">search</span>
-            <input
-              className="bg-transparent border-none focus:ring-0 text-sm text-on-surface w-full"
-              placeholder="Buscar reservas..."
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-md">
-          <button className="relative p-sm text-on-surface-variant hover:text-primary transition-colors active:scale-95 duration-200">
-            <span className="material-symbols-outlined">notifications</span>
-            <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
-          </button>
-          <button className="p-sm text-on-surface-variant hover:text-primary transition-colors active:scale-95 duration-200">
-            <span className="material-symbols-outlined">settings</span>
-          </button>
-          <div className="h-10 w-10 rounded-full border border-primary/30 overflow-hidden ml-sm">
-            <img
-              className="w-full h-full object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeQG-jRCqU8a_daT3FfH5vFpEVcJEFmDQ-WHSDfiKriKFm5DJ_q1oYtvRB6UV7xDYJlD3BkCfdeMT62Qmx9lX8tup1HZGOFCxVYLTZve7CxhOfxO3cpvc9P6J1nEklITlKvWub7XbIb7b9hQtMxMRaYedJezpZ8W93l74zGBR47G7L8y93LdZleRorAp7XWduCrENhjEtksjTb94h4jCYbS36G7YjY_BidDyCXpPrkndDTvLwYRFqxjlJz5Q-MpLmlrhJr6WTn9cke"
-              alt="avatar"
-            />
-          </div>
-        </div>
-      </header>
-
       {/* ===== MAIN CONTENT ===== */}
-      <main className="pt-24 pb-xl px-margin-mobile md:px-margin-desktop md:ml-64 relative z-10">
+      <main className="pt-20 pb-xl px-margin-mobile md:px-margin-desktop min-h-screen">
         {/* Header Section */}
         <section className="mb-lg">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-md">
@@ -733,6 +724,12 @@ const AdminReservas = () => {
             <div className="flex gap-sm">
               <button className="px-md py-sm bg-surface-container-high rounded-xl border border-white/10 font-label-md text-label-md text-on-surface hover:bg-surface-variant transition-all active:scale-95 flex items-center gap-xs">
                 <span className="material-symbols-outlined text-sm">filter_list</span> Filtrar
+              </button>
+              <button
+                onClick={abrirModalDetalles}
+                className="px-md py-sm bg-tertiary/20 text-tertiary border border-tertiary/30 rounded-xl font-label-md text-label-md hover:bg-tertiary/30 transition-all active:scale-95 flex items-center gap-xs"
+              >
+                <span className="material-symbols-outlined text-sm">visibility</span> Detalles
               </button>
               <button
                 onClick={abrirModalRecursos}
@@ -1010,9 +1007,9 @@ const AdminReservas = () => {
         </div>
       </main>
 
-      {/* ===== TOAST DE CONFIRMACIÓN DE LLEGADA ===== */}
+      {/* ===== TOASTS ===== */}
       <div
-        className={`fixed bottom-margin-desktop right-margin-desktop glass-card rounded-xl px-md py-sm flex items-center gap-sm transition-all duration-300 z-[100] neon-border-primary ${
+        className={`fixed bottom-6 right-6 md:bottom-10 md:right-10 glass-card rounded-xl px-md py-sm flex items-center gap-sm transition-all duration-300 z-[100] neon-border-primary ${
           toastConfirm.visible ? "translate-y-0 opacity-100" : "translate-y-24 opacity-0"
         }`}
       >
@@ -1023,9 +1020,10 @@ const AdminReservas = () => {
         </div>
       </div>
 
-      {/* ===== TOAST GENÉRICO ===== */}
       {toast.visible && (
-        <div className="fixed bottom-24 right-8 glass-card rounded-xl px-md py-sm flex items-center gap-sm transition-all duration-300 z-[100] border border-primary/30">
+        <div className={`fixed bottom-6 right-6 md:bottom-10 md:right-10 glass-card rounded-xl px-md py-sm flex items-center gap-sm transition-all duration-300 z-[100] border ${
+          toast.tipo === "error" ? "border-error/30" : "border-primary/30"
+        }`}>
           <span className="material-symbols-outlined text-primary">info</span>
           <div>
             <p className="text-on-surface font-bold text-sm">{toast.mensaje}</p>
@@ -1042,6 +1040,136 @@ const AdminReservas = () => {
           <span className="material-symbols-outlined text-3xl">settings</span>
         </button>
       </div>
+
+      {/* ===== MODAL DE DETALLES DE RECURSOS ===== */}
+      {modalDetallesAbierto && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="glass-card rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto relative border border-white/20 shadow-2xl custom-scrollbar">
+            <button
+              onClick={cerrarModalDetalles}
+              className="absolute top-3 right-3 text-on-surface-variant hover:text-primary transition-colors"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <h3 className="font-headline-md text-headline-md text-on-surface mb-4">Estado de Recursos</h3>
+
+            {/* Mesas */}
+            <div className="mb-6">
+              <h4 className="font-label-md text-primary uppercase tracking-widest mb-3">Mesas</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {mesas.length === 0 ? (
+                  <p className="text-on-surface-variant col-span-2">No hay mesas registradas</p>
+                ) : (
+                  mesas.map((mesa) => {
+                    const { estado, color, label, reserva } = getEstadoRecurso("mesa", mesa.id);
+                    return (
+                      <div key={mesa.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 hover:bg-white/10 transition">
+                        <div>
+                          <p className="text-on-surface font-bold">{mesa.nombre}</p>
+                          <p className="text-xs text-on-surface-variant">Capacidad: {mesa.capacidad}</p>
+                          {reserva && (
+                            <p className="text-xs text-on-surface-variant">
+                              Cliente: {reserva.cliente} • {reserva.hora} • {reserva.personas} pers.
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-3 h-3 rounded-full ${color}`}></span>
+                          <span className={`text-xs font-bold ${estado === "ocupado" ? "text-red-500" : estado === "pendiente" ? "text-yellow-500" : "text-green-500"}`}>
+                            {label}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Parqueaderos */}
+            <div className="mb-6">
+              <h4 className="font-label-md text-primary uppercase tracking-widest mb-3">Parqueaderos</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {parqueaderos.length === 0 ? (
+                  <p className="text-on-surface-variant col-span-2">No hay parqueaderos registrados</p>
+                ) : (
+                  parqueaderos.map((parq) => {
+                    const { estado, color, label, reserva } = getEstadoRecurso("parqueadero", parq.id);
+                    return (
+                      <div key={parq.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 hover:bg-white/10 transition">
+                        <div>
+                          <p className="text-on-surface font-bold">{parq.nombre}</p>
+                          {parq.descripcion && <p className="text-xs text-on-surface-variant">{parq.descripcion}</p>}
+                          {reserva && (
+                            <p className="text-xs text-on-surface-variant">
+                              Cliente: {reserva.cliente} • {reserva.hora}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-3 h-3 rounded-full ${color}`}></span>
+                          <span className={`text-xs font-bold ${estado === "ocupado" ? "text-red-500" : estado === "pendiente" ? "text-yellow-500" : "text-green-500"}`}>
+                            {label}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Covers */}
+            <div className="mb-6">
+              <h4 className="font-label-md text-primary uppercase tracking-widest mb-3">Covers / Tarimas</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {covers.length === 0 ? (
+                  <p className="text-on-surface-variant col-span-2">No hay covers registrados</p>
+                ) : (
+                  covers.map((cover) => {
+                    const { estado, color, label, reserva } = getEstadoRecurso("cover", cover.id);
+                    return (
+                      <div key={cover.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5 hover:bg-white/10 transition">
+                        <div>
+                          <p className="text-on-surface font-bold">{cover.nombre}</p>
+                          <p className="text-xs text-on-surface-variant">Capacidad: {cover.capacidad}</p>
+                          {reserva && (
+                            <p className="text-xs text-on-surface-variant">
+                              Cliente: {reserva.cliente} • {reserva.hora} • {reserva.personas} pers.
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-3 h-3 rounded-full ${color}`}></span>
+                          <span className={`text-xs font-bold ${estado === "ocupado" ? "text-red-500" : estado === "pendiente" ? "text-yellow-500" : "text-green-500"}`}>
+                            {label}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Leyenda */}
+            <div className="flex flex-wrap gap-4 pt-4 border-t border-white/10">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-red-500"></span>
+                <span className="text-xs text-on-surface-variant">Ocupado (Confirmado)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
+                <span className="text-xs text-on-surface-variant">Pendiente</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-green-500"></span>
+                <span className="text-xs text-on-surface-variant">Disponible</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== MODAL DE GESTIÓN DE RECURSOS ===== */}
       {modalRecursosAbierto && (
@@ -1089,7 +1217,7 @@ const AdminReservas = () => {
               </button>
             </div>
 
-            {/* Contenido de pestañas */}
+            {/* Contenido de pestañas - mismo que antes */}
             {tabRecursos === "mesas" && (
               <div>
                 <form onSubmit={handleMesaSubmit} className="flex flex-wrap gap-2 items-end mb-4">

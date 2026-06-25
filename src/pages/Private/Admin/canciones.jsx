@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { cancionService } from "../../../services/cancionService"; // Ajusta la ruta según tu proyecto
+import { cancionService } from "../../../services/cancionService";
+import NavbarAdmin from "../../../components/Layout/NavbarHeader";
 
 const AdminCanciones = () => {
   // Estados
@@ -54,6 +55,20 @@ const AdminCanciones = () => {
   const triggerFX = (type) => {
     setNotificacionFX({ visible: true, mensaje: `Efecto ${type} disparado con éxito` });
     setTimeout(() => setNotificacionFX({ visible: false, mensaje: "" }), 3000);
+  };
+
+  // ===== FUNCIÓN PARA VER EN YOUTUBE (igual que en el usuario) =====
+  const verEnYouTube = (titulo, url) => {
+    if (url && url.includes("youtube.com")) {
+      window.open(url, "_blank");
+    } else if (url) {
+      // Si tiene URL pero no es de YouTube, igual la abrimos
+      window.open(url, "_blank");
+    } else {
+      // Si no tiene URL, buscar por título
+      const query = encodeURIComponent(titulo);
+      window.open(`https://www.youtube.com/results?search_query=${query}`, "_blank");
+    }
   };
 
   // CRUD
@@ -147,16 +162,19 @@ const AdminCanciones = () => {
     c.artista?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Estadísticas (para mostrar en el header)
+  // Estadísticas
   const totalCanciones = canciones.length;
   const artistasUnicos = new Set(canciones.map(c => c.artista)).size;
 
-  // Canciones para "más pedidas" (primeras 4, o todas si hay menos)
+  // Canciones para "más pedidas" (primeras 4)
   const cancionesTop = canciones.slice(0, 4);
 
   return (
     <>
-      {/* ===== ESTILOS PERSONALIZADOS (idénticos al HTML original) ===== */}
+      {/* ===== NAVBAR ADMIN ===== */}
+      <NavbarAdmin />
+
+      {/* ===== ESTILOS ===== */}
       <style>{`
         /* Variables de color (extraídas del tema) */
         :root {
@@ -184,14 +202,12 @@ const AdminCanciones = () => {
           --background: #131313;
         }
 
-        /* Fondo general */
         body {
           background-color: #050505;
           color: var(--on-surface);
           overflow-x: hidden;
         }
 
-        /* Clases personalizadas (iguales a las del HTML) */
         .glass-card {
           background: rgba(28, 28, 30, 0.7);
           backdrop-filter: blur(20px);
@@ -205,26 +221,17 @@ const AdminCanciones = () => {
           border: 1px solid #e9b3ff;
           box-shadow: 0 0 8px rgba(233, 179, 255, 0.4);
         }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e9b3ff;
-          border-radius: 10px;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e9b3ff; border-radius: 10px; }
         @keyframes pulse-neon {
           0% { opacity: 1; }
           50% { opacity: 0.6; }
           100% { opacity: 1; }
         }
-        .animate-pulse-neon {
-          animation: pulse-neon 2s infinite ease-in-out;
-        }
+        .animate-pulse-neon { animation: pulse-neon 2s infinite ease-in-out; }
 
-        /* Clases de color (para usar con las variables) */
+        /* Clases de color */
         .bg-surface { background-color: var(--surface); }
         .bg-surface-container { background-color: var(--surface-container); }
         .bg-surface-container-high { background-color: var(--surface-container-high); }
@@ -284,7 +291,7 @@ const AdminCanciones = () => {
         .font-stats-number { font-family: 'Montserrat', sans-serif; }
         .font-display-lg { font-family: 'Montserrat', sans-serif; }
 
-        /* Tamaños de fuente (iguales al original) */
+        /* Tamaños de fuente */
         .text-headline-lg { font-size: 32px; line-height: 40px; letter-spacing: -0.01em; font-weight: 700; }
         .text-headline-md { font-size: 24px; line-height: 32px; font-weight: 600; }
         .text-body-md { font-size: 16px; line-height: 24px; font-weight: 400; }
@@ -297,57 +304,12 @@ const AdminCanciones = () => {
         .text-2xl { font-size: 24px; line-height: 32px; }
         .text-3xl { font-size: 28px; line-height: 36px; }
         .text-\\[18px\\] { font-size: 18px; }
+        .text-\\[10px\\] { font-size: 10px; }
 
-        /* Clases de utilidad adicionales */
-        .tracking-widest { letter-spacing: 0.1em; }
-        .tracking-tight { letter-spacing: -0.02em; }
-        .tracking-tighter { letter-spacing: -0.05em; }
-        .uppercase { text-transform: uppercase; }
-        .rounded-full { border-radius: 9999px; }
-        .rounded-xl { border-radius: 0.75rem; }
-        .rounded-lg { border-radius: 0.5rem; }
-        .rounded { border-radius: 0.25rem; }
-        .border { border-width: 1px; }
-        .border-r-2 { border-right-width: 2px; }
-        .border-b { border-bottom-width: 1px; }
-        .border-t { border-top-width: 1px; }
-        .opacity-0 { opacity: 0; }
-        .opacity-100 { opacity: 1; }
-        .opacity-60 { opacity: 0.6; }
-        .opacity-70 { opacity: 0.7; }
-        .opacity-80 { opacity: 0.8; }
-        .grayscale-\\[0\\.5\\] { filter: grayscale(0.5); }
-        .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
-        .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
-        .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
-        .shadow-\\[0_0_20px_rgba\\(233\\,179\\,255\\,0\\.1\\)\\] { box-shadow: 0 0 20px rgba(233,179,255,0.1); }
-        .shadow-\\[0_0_8px_\\#ffb2b7\\] { box-shadow: 0 0 8px #ffb2b7; }
-        .shadow-\\[0_0_5px_\\#e9b3ff\\] { box-shadow: 0 0 5px #e9b3ff; }
-        .z-10 { z-index: 10; }
-        .z-40 { z-index: 40; }
-        .z-50 { z-index: 50; }
-        .z-100 { z-index: 100; }
-        .z-200 { z-index: 200; }
-        .z-60 { z-index: 60; }
-        .relative { position: relative; }
-        .absolute { position: absolute; }
-        .fixed { position: fixed; }
-        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
-        .inset-y-0 { top: 0; bottom: 0; }
-        .left-0 { left: 0; }
-        .top-0 { top: 0; }
-        .right-0 { right: 0; }
-        .bottom-0 { bottom: 0; }
-        .translate-y-0 { transform: translateY(0); }
-        .translate-y-20 { transform: translateY(5rem); }
-        .-translate-y-20 { transform: translateY(-5rem); }
-        .-translate-x-1\\/2 { transform: translateX(-50%); }
-        .translate-x-0 { transform: translateX(0); }
-
-        /* Clases para espaciado (iguales al original) */
+        /* Espaciado y layout */
         .px-margin-mobile { padding-left: 16px; padding-right: 16px; }
-        .px-margin-desktop { padding-left: 48px; padding-right: 48px; }
-        .pt-24 { padding-top: 6rem; }
+        .md\\:px-margin-desktop { padding-left: 48px; padding-right: 48px; }
+        .pt-20 { padding-top: 5rem; }
         .pb-xl { padding-bottom: 64px; }
         .gap-gutter { gap: 24px; }
         .gap-base { gap: 8px; }
@@ -374,10 +336,8 @@ const AdminCanciones = () => {
         .ml-sm { margin-left: 12px; }
         .ml-lg { margin-left: 40px; }
         .ml-xs { margin-left: 4px; }
-        .w-64 { width: 16rem; }
         .w-full { width: 100%; }
         .h-full { height: 100%; }
-        .h-20 { height: 5rem; }
         .h-10 { height: 2.5rem; }
         .h-8 { height: 2rem; }
         .h-14 { height: 3.5rem; }
@@ -388,8 +348,8 @@ const AdminCanciones = () => {
         .w-10 { width: 2.5rem; }
         .w-14 { width: 3.5rem; }
         .w-2 { width: 0.5rem; }
-        .w-1\.5 { width: 0.375rem; }
-        .h-1\.5 { height: 0.375rem; }
+        .w-1\\.5 { width: 0.375rem; }
+        .h-1\\.5 { height: 0.375rem; }
         .w-16 { width: 4rem; }
         .max-w-2xl { max-width: 42rem; }
         .max-w-md { max-width: 28rem; }
@@ -405,6 +365,7 @@ const AdminCanciones = () => {
         .text-left { text-align: left; }
         .overflow-hidden { overflow: hidden; }
         .overflow-x-auto { overflow-x: auto; }
+        .overflow-y-auto { overflow-y: auto; }
         .border-collapse { border-collapse: collapse; }
         .divide-y > * + * { border-top-width: 1px; }
         .divide-white\\/5 > * + * { border-color: rgba(255,255,255,0.05); }
@@ -479,19 +440,37 @@ const AdminCanciones = () => {
         .shrink-0 { flex-shrink: 0; }
         .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .min-h-screen { min-height: 100vh; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .fixed { position: fixed; }
+        .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+        .inset-y-0 { top: 0; bottom: 0; }
+        .left-0 { left: 0; }
+        .top-0 { top: 0; }
+        .right-0 { right: 0; }
+        .bottom-0 { bottom: 0; }
+        .translate-y-0 { transform: translateY(0); }
+        .translate-y-20 { transform: translateY(5rem); }
+        .-translate-y-20 { transform: translateY(-5rem); }
+        .-translate-x-1\\/2 { transform: translateX(-50%); }
+        .translate-x-0 { transform: translateX(0); }
+        .z-10 { z-index: 10; }
+        .z-40 { z-index: 40; }
+        .z-50 { z-index: 50; }
+        .z-100 { z-index: 100; }
+        .z-200 { z-index: 200; }
+        .z-60 { z-index: 60; }
 
-        /* Responsive */
         @media (min-width: 768px) {
           .md\\:flex { display: flex; }
           .md\\:hidden { display: none; }
-          .md\\:ml-64 { margin-left: 16rem; }
+          .md\\:px-margin-desktop { padding-left: 48px; padding-right: 48px; }
+          .md\\:bottom-margin-desktop { bottom: 48px; }
+          .md\\:right-margin-desktop { right: 48px; }
           .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           .md\\:col-span-2 { grid-column: span 2 / span 2; }
           .md\\:flex-row { flex-direction: row; }
           .md\\:items-end { align-items: flex-end; }
-          .md\\:px-margin-desktop { padding-left: 48px; padding-right: 48px; }
-          .md\\:bottom-margin-desktop { bottom: 48px; }
-          .md\\:right-margin-desktop { right: 48px; }
         }
         @media (min-width: 1024px) {
           .lg\\:grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
@@ -500,87 +479,8 @@ const AdminCanciones = () => {
         }
       `}</style>
 
-      {/* ===== HEADER ===== */}
-      <header className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-xl border-b border-white/10 shadow-[0_0_20px_rgba(233,179,255,0.1)] flex justify-between items-center px-margin-desktop h-20">
-        <div className="flex items-center gap-md">
-          <span className="font-display-lg text-display-lg text-primary tracking-tight">Afterdark Pulse</span>
-          <div className="hidden md:flex items-center bg-surface-variant/50 rounded-full px-sm py-xs border border-white/5 ml-lg">
-            <span className="material-symbols-outlined text-on-surface-variant mr-xs">search</span>
-            <input
-              className="bg-transparent border-none focus:ring-0 text-label-md text-on-surface placeholder:text-on-surface-variant w-64"
-              placeholder="Buscar artista o canción..."
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-        <nav className="hidden md:flex items-center gap-lg">
-          <a className="text-on-surface-variant hover:text-primary transition-colors font-label-md" href="#">Soporte</a>
-          <div className="flex items-center gap-sm">
-            <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">notifications</button>
-            <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">settings</button>
-            <div className="w-10 h-10 rounded-full overflow-hidden border border-primary/30">
-              <img
-                className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuCA9fJYVHyhJ7RSNPnlwBKtrfpZZnA4Unoge_5ATGmAXuncTpzFwRmyqtnoEuIuAh8a03bb7AwoH08JyXaPF0y6gjtcQw-elYhtD2baFp5qMDUxKsSAXUwfycNCige0jahPT3dbEcETlivolg5WO5hGx4_IKpv7VRjiB-f_93yJ22SHjiubbxyRPj8AxiGkZ-wd2roSY70Sj8IPfbZj_JDMwWCJ4b16kBO6kQDGr-BEpA6d9i_3J_0JsKVSfhH--zDIthlljZO3biWm"
-                alt="avatar"
-              />
-            </div>
-          </div>
-        </nav>
-      </header>
-
-      {/* ===== SIDEBAR ===== */}
-      <aside className="fixed left-0 top-0 h-full w-64 z-40 bg-surface-container/80 backdrop-blur-2xl border-r border-white/10 shadow-xl hidden md:flex flex-col py-lg gap-base pt-24">
-        <div className="px-md mb-base">
-          <p className="font-label-md text-primary opacity-70 uppercase tracking-widest">Menú Principal</p>
-        </div>
-        <nav className="flex flex-col flex-1">
-          <a className="flex items-center px-md py-sm text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 gap-sm" href="#">
-            <span className="material-symbols-outlined">dashboard</span>
-            <span className="font-label-md">Dashboard</span>
-          </a>
-          <a className="flex items-center px-md py-sm text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 gap-sm" href="#">
-            <span className="material-symbols-outlined">monitoring</span>
-            <span className="font-label-md">Analytics</span>
-          </a>
-          <a className="flex items-center px-md py-sm text-primary border-r-2 border-primary bg-primary/5 transition-all active:translate-x-1 duration-150 gap-sm" href="#">
-            <span className="material-symbols-outlined">music_note</span>
-            <span className="font-label-md">Music/Songs</span>
-          </a>
-          <a className="flex items-center px-md py-sm text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 gap-sm" href="#">
-            <span className="material-symbols-outlined">calendar_today</span>
-            <span className="font-label-md">Events/Schedules</span>
-          </a>
-          <a className="flex items-center px-md py-sm text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 gap-sm" href="#">
-            <span className="material-symbols-outlined">layers</span>
-            <span className="font-label-md">VIP Floor</span>
-          </a>
-          <a className="flex items-center px-md py-sm text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 gap-sm" href="#">
-            <span className="material-symbols-outlined">group</span>
-            <span className="font-label-md">Users</span>
-          </a>
-          <a className="flex items-center px-md py-sm text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all active:translate-x-1 duration-150 gap-sm" href="#">
-            <span className="material-symbols-outlined">inventory_2</span>
-            <span className="font-label-md">Inventory</span>
-          </a>
-        </nav>
-        <div className="mt-auto px-md flex flex-col gap-xs">
-          <a className="flex items-center py-xs text-on-surface-variant hover:text-on-surface transition-colors gap-sm" href="#">
-            <span className="material-symbols-outlined">help</span>
-            <span className="font-label-md text-label-md">Support</span>
-          </a>
-          {/* === CAMBIO: Logout redirige a /home === */}
-          <a className="flex items-center py-xs text-on-surface-variant hover:text-on-surface transition-colors gap-sm" href="/home">
-            <span className="material-symbols-outlined">logout</span>
-            <span className="font-label-md text-label-md">Logout</span>
-          </a>
-        </div>
-      </aside>
-
       {/* ===== MAIN CONTENT ===== */}
-      <main className="md:ml-64 pt-24 pb-xl px-margin-mobile md:px-margin-desktop min-h-screen">
+      <main className="pt-20 pb-xl px-margin-mobile md:px-margin-desktop min-h-screen">
         {/* Header Section */}
         <header className="mb-lg flex flex-col md:flex-row md:items-end justify-between gap-md">
           <div>
@@ -598,9 +498,22 @@ const AdminCanciones = () => {
               <span className="material-symbols-outlined text-error text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>fiber_manual_record</span>
               <span className="text-error font-label-md uppercase tracking-tighter">En Vivo</span>
             </div>
-            {/* Botón "Descargar Horario" eliminado */}
           </div>
         </header>
+
+        {/* Barra de búsqueda */}
+        <div className="mb-lg">
+          <div className="relative max-w-md">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+            <input
+              className="bg-surface-container-high border border-white/10 rounded-full pl-10 pr-4 py-2 text-on-surface w-full focus:border-primary/50 focus:outline-none transition-all"
+              placeholder="Buscar artista o canción..."
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
 
         {/* Bento Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
@@ -622,8 +535,8 @@ const AdminCanciones = () => {
                   <div className="text-center py-4 text-on-surface-variant">No hay canciones</div>
                 ) : (
                   cancionesFiltradas.map((cancion, index) => {
-                    const esActiva = index === 0; // Simulamos la primera como activa
-                    const esPasada = index > 2; // Simulamos pasadas
+                    const esActiva = index === 0;
+                    const esPasada = index > 2;
                     return (
                       <div
                         key={cancion.id}
@@ -664,7 +577,7 @@ const AdminCanciones = () => {
                           ) : (
                             <p className="text-on-surface-variant text-label-md">Siguiente Set</p>
                           )}
-                          <div className="flex gap-1 mt-1">
+                          <div className="flex flex-wrap items-center gap-1 mt-1">
                             <button
                               onClick={() => abrirModalEditar(cancion)}
                               className="bg-primary/20 text-primary px-2 py-0.5 rounded text-[10px] font-bold hover:bg-primary/40 transition"
@@ -676,6 +589,13 @@ const AdminCanciones = () => {
                               className="bg-error/20 text-error px-2 py-0.5 rounded text-[10px] font-bold hover:bg-error/40 transition"
                             >
                               Eliminar
+                            </button>
+                            {/* ===== BOTÓN VER EN YOUTUBE (en cada canción) ===== */}
+                            <button
+                              onClick={() => verEnYouTube(cancion.titulo, cancion.url)}
+                              className="text-[10px] text-primary hover:underline px-1 py-0.5"
+                            >
+                              Ver en YouTube
                             </button>
                           </div>
                         </div>
@@ -692,12 +612,11 @@ const AdminCanciones = () => {
               </div>
             </div>
 
-            {/* Active Playlist Section (Canciones más pedidas) - Dinámico con las canciones agregadas */}
+            {/* Active Playlist Section (Canciones más pedidas) */}
             <div className="glass-card rounded-xl p-md">
               <div className="flex items-center gap-sm mb-md">
                 <span className="material-symbols-outlined text-primary">playlist_play</span>
                 <h2 className="font-headline-md text-headline-md">Canciones más Pedidas</h2>
-                {/* === ELIMINADO: botón "Ver Todo" === */}
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-sm">
                 {cancionesTop.length === 0 ? (
@@ -713,7 +632,7 @@ const AdminCanciones = () => {
                           src={
                             cancion.url && cancion.url.includes("youtube")
                               ? `https://img.youtube.com/vi/${cancion.url.split("v=")[1]?.split("&")[0]}/mqdefault.jpg`
-                              : "https://lh3.googleusercontent.com/aida-public/AB6AXuBDTQPgTtx1UQMxwXyBCvFef-_V8rcSWwqGJQvXRXdtaxiG8V7C7UeyQE6R7Um_4nAryV2OKVaj6dfXfmlAjA1_zp3N4SAcO6Ns3_m_HmzNufJXoXiO8-6-qcKa3JOMy18Im2F21bD1jMhwBrxk5EqFWvSqHSmbdSgIBpiSMsPftevNCxn2bdOTiLX_sq6UfouD77zOYO3gPMgqveoeZQsVYABdf4IGpc97l37NPST1CtjPZI91uM5vqj6wDvIzaCKFlkTG_TNZ2RFh" // imagen por defecto
+                              : "https://lh3.googleusercontent.com/aida-public/AB6AXuBDTQPgTtx1UQMxwXyBCvFef-_V8rcSWwqGJQvXRXdtaxiG8V7C7UeyQE6R7Um_4nAryV2OKVaj6dfXfmlAjA1_zp3N4SAcO6Ns3_m_HmzNufJXoXiO8-6-qcKa3JOMy18Im2F21bD1jMhwBrxk5EqFWvSqHSmbdSgIBpiSMsPftevNCxn2bdOTiLX_sq6UfouD77zOYO3gPMgqveoeZQsVYABdf4IGpc97l37NPST1CtjPZI91uM5vqj6wDvIzaCKFlkTG_TNZ2RFh"
                           }
                           alt={cancion.titulo}
                         />
@@ -822,7 +741,7 @@ const AdminCanciones = () => {
         </div>
       </main>
 
-      {/* ===== NOTIFICACIÓN FX (estilo "Efecto activado") ===== */}
+      {/* ===== NOTIFICACIÓN FX ===== */}
       <div
         className={`fixed top-24 left-1/2 -translate-x-1/2 glass-card border-primary text-primary px-lg py-sm rounded-full transform transition-all duration-300 z-60 flex items-center gap-sm ${
           notificacionFX.visible ? "translate-y-0 opacity-100" : "-translate-y-20 opacity-0"
@@ -832,9 +751,9 @@ const AdminCanciones = () => {
         <span className="font-label-md">{notificacionFX.mensaje}</span>
       </div>
 
-      {/* ===== TOAST (para acciones CRUD) ===== */}
+      {/* ===== TOAST ===== */}
       <div
-        className={`fixed bottom-margin-desktop right-margin-desktop glass-card rounded-xl px-md py-sm flex items-center gap-sm transition-all duration-300 z-[100] neon-border-primary ${
+        className={`fixed bottom-24 right-8 md:bottom-10 md:right-10 glass-card rounded-xl px-md py-sm flex items-center gap-sm transition-all duration-300 z-[100] neon-border-primary ${
           toast.visible ? "translate-y-0 opacity-100" : "translate-y-24 opacity-0"
         }`}
       >
@@ -845,7 +764,7 @@ const AdminCanciones = () => {
         </div>
       </div>
 
-      {/* ===== MODAL ===== */}
+      {/* ===== MODAL (con botón Ver en YouTube) ===== */}
       {modalAbierto && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="glass-card rounded-2xl p-6 w-full max-w-md relative border border-white/20 shadow-2xl">
@@ -904,13 +823,28 @@ const AdminCanciones = () => {
               </div>
               <div>
                 <label className="block text-xs font-label-md text-on-surface-variant mb-1">URL (YouTube)</label>
-                <input
-                  type="url"
-                  name="url"
-                  value={cancionActual.url || ""}
-                  onChange={handleChange}
-                  className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    name="url"
+                    value={cancionActual.url || ""}
+                    onChange={handleChange}
+                    className="flex-1 bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                  />
+                  {/* ===== BOTÓN VER EN YOUTUBE en el modal ===== */}
+                  <button
+                    type="button"
+                    onClick={() => verEnYouTube(cancionActual.titulo, cancionActual.url)}
+                    className="bg-secondary/20 text-secondary font-label-md px-4 py-2 rounded-lg hover:bg-secondary/40 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    disabled={!cancionActual.titulo?.trim()}
+                  >
+                    Ver en YouTube
+                  </button>
+                </div>
+                {cancionActual.url && (
+                  <p className="text-[10px] text-on-surface-variant mt-1">URL guardada: <span className="text-primary">{cancionActual.url}</span></p>
+                )}
               </div>
               <div className="flex gap-3 pt-2">
                 <button

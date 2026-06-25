@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { productoService } from "../../../services/productoService";
+import NavbarAdmin from "../../../components/Layout/NavbarHeader";
 
 const AdminProductos = () => {
   // ===== ESTADOS =====
@@ -8,7 +9,7 @@ const AdminProductos = () => {
   const [categoriaFiltro, setCategoriaFiltro] = useState("Todos");
   const [loading, setLoading] = useState(false);
 
-  // Modal
+  // Modal de producto
   const [modalAbierto, setModalAbierto] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [productoActual, setProductoActual] = useState({
@@ -22,6 +23,10 @@ const AdminProductos = () => {
     descripcion: "",
   });
 
+  // Modal de proveedores
+  const [modalProveedorAbierto, setModalProveedorAbierto] = useState(false);
+  const [mensajeProveedor, setMensajeProveedor] = useState("");
+
   // Toast
   const [toast, setToast] = useState({ visible: false, mensaje: "", tipo: "" });
 
@@ -34,7 +39,6 @@ const AdminProductos = () => {
     setLoading(true);
     try {
       const data = await productoService.getAll();
-      // Asegurar que tenga stockTotal (si no, asignar stock como total)
       const productosConTotal = data.map(p => ({
         ...p,
         stockTotal: p.stockTotal || p.stock || 10,
@@ -61,8 +65,38 @@ const AdminProductos = () => {
     setTimeout(() => setToast({ visible: false, mensaje: "", tipo: "" }), 3000);
   };
 
+  // ===== VALIDACIONES =====
+  const validarProducto = (producto) => {
+    if (!producto.nombre.trim()) {
+      mostrarToast("El nombre del producto es obligatorio", "error");
+      return false;
+    }
+    const duplicado = productos.some(p =>
+      p.nombre?.toLowerCase() === producto.nombre?.toLowerCase().trim() &&
+      p.id !== producto.id
+    );
+    if (duplicado) {
+      mostrarToast("Ya existe un producto con ese nombre", "error");
+      return false;
+    }
+    if (!producto.categoria) {
+      mostrarToast("La categoría es obligatoria", "error");
+      return false;
+    }
+    if (producto.precio < 0) {
+      mostrarToast("El precio no puede ser negativo", "error");
+      return false;
+    }
+    if (producto.stock > producto.stockTotal) {
+      mostrarToast("El stock actual no puede ser mayor que la capacidad total", "error");
+      return false;
+    }
+    return true;
+  };
+
   // ===== CRUD =====
   const handleCreate = async (nuevoProducto) => {
+    if (!validarProducto(nuevoProducto)) return;
     try {
       const created = await productoService.create(nuevoProducto);
       const updated = [...productos, created];
@@ -82,6 +116,7 @@ const AdminProductos = () => {
   };
 
   const handleUpdate = async (id, data) => {
+    if (!validarProducto(data)) return;
     try {
       const updated = await productoService.update(id, data);
       const updatedList = productos.map((p) => (p.id === id ? updated : p));
@@ -116,7 +151,7 @@ const AdminProductos = () => {
     }
   };
 
-  // ===== MODAL =====
+  // ===== MODAL DE PRODUCTO =====
   const abrirModalCrear = () => {
     setModoEdicion(false);
     setProductoActual({ id: null, nombre: "", categoria: "", stock: 0, stockTotal: 10, precio: 0, imagen: "", descripcion: "" });
@@ -151,9 +186,27 @@ const AdminProductos = () => {
     });
   };
 
+  // ===== MODAL DE PROVEEDORES =====
+  const abrirModalProveedor = () => {
+    setModalProveedorAbierto(true);
+    setMensajeProveedor("");
+  };
+
+  const cerrarModalProveedor = () => {
+    setModalProveedorAbierto(false);
+    setMensajeProveedor("");
+  };
+
+  const enviarMensajeProveedor = () => {
+    if (!mensajeProveedor.trim()) {
+      mostrarToast("Escribe un mensaje para el proveedor", "error");
+      return;
+    }
+    mostrarToast("Mensaje enviado a los proveedores", "success");
+    cerrarModalProveedor();
+  };
+
   // ===== FILTROS Y ESTADÍSTICAS =====
-  const categoriasDisponibles = ["Todos", "Licores", "Cócteles", "Refrescos", "Snacks", "Otros"];
-  // Extraer categorías únicas de los productos
   const categoriasUnicas = ["Todos", ...new Set(productos.map(p => p.categoria).filter(Boolean))];
 
   const productosFiltrados = productos.filter((p) => {
@@ -169,10 +222,11 @@ const AdminProductos = () => {
     ? Math.round(productos.reduce((acc, p) => acc + (p.stock / (p.stockTotal || 1)), 0) / productos.length * 100)
     : 0;
 
-  // ===== RENDER =====
   return (
     <>
-      {/* ===== ESTILOS PERSONALIZADOS ===== */}
+      <NavbarAdmin />
+
+      {/* ===== ESTILOS ===== */}
       <style>{`
         body {
           background-color: #050505;
@@ -192,20 +246,11 @@ const AdminProductos = () => {
           border: 1px solid #e9b3ff;
           box-shadow: 0 0 10px rgba(233, 179, 255, 0.3);
         }
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.05);
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e9b3ff;
-          border-radius: 10px;
-        }
-        .material-symbols-outlined {
-          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-        }
-        /* Mapeo de colores */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e9b3ff; border-radius: 10px; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
         .bg-surface { background-color: #131313; }
         .bg-surface-container { background-color: #201f1f; }
         .bg-surface-container-high { background-color: #2a2a2a; }
@@ -230,31 +275,30 @@ const AdminProductos = () => {
         .text-on-error { color: #690005; }
         .border-primary { border-color: #e9b3ff; }
         .border-secondary { border-color: #ffb2b7; }
-        .border-white\\/10 { border-color: rgba(255,255,255,0.1); }
-        .border-white\\/5 { border-color: rgba(255,255,255,0.05); }
-        .bg-white\\/5 { background-color: rgba(255,255,255,0.05); }
-        .bg-white\\/10 { background-color: rgba(255,255,255,0.1); }
-        .bg-primary\\/5 { background-color: rgba(233,179,255,0.05); }
-        .bg-primary\\/10 { background-color: rgba(233,179,255,0.1); }
-        .bg-primary\\/20 { background-color: rgba(233,179,255,0.2); }
-        .bg-secondary\\/10 { background-color: rgba(255,178,183,0.1); }
-        .bg-secondary\\/20 { background-color: rgba(255,178,183,0.2); }
-        .bg-tertiary\\/20 { background-color: rgba(231,196,72,0.2); }
-        .bg-error-container\\/20 { background-color: rgba(147,0,10,0.2); }
-        .bg-error-container\\/5 { background-color: rgba(147,0,10,0.05); }
-        .border-error\\/30 { border-color: rgba(255,180,171,0.3); }
-        .bg-surface-container-highest\\/50 { background-color: rgba(53,53,52,0.5); }
-        .shadow-primary\\/20 { box-shadow: 0 4px 14px rgba(233,179,255,0.2); }
-        .shadow-\\[0_0_8px_\\#ffb2b7\\] { box-shadow: 0 0 8px #ffb2b7; }
-        .shadow-\\[0_0_5px_\\#e9b3ff\\] { box-shadow: 0 0 5px #e9b3ff; }
-        .shadow-\\[0_0_20px_rgba\\(233\\,179\\,255\\,0\\.1\\)\\] { box-shadow: 0 0 20px rgba(233,179,255,0.1); }
-        .shadow-\\[0_0_15px_rgba\\(233\\,179\\,255\\,0\\.3\\)\\] { box-shadow: 0 0 15px rgba(233,179,255,0.3); }
-        .shadow-\\[0_0_8px_rgba\\(231\\,196\\,72\\,0\\.6\\)\\] { box-shadow: 0 0 8px rgba(231,196,72,0.6); }
-        .shadow-\\[0_0_8px_rgba\\(233\\,179\\,255\\,0\\.6\\)\\] { box-shadow: 0 0 8px rgba(233,179,255,0.6); }
-        .shadow-\\[0_0_30px_rgba\\(233\\,179\\,255\\,0\\.6\\)\\] { box-shadow: 0 0 30px rgba(233,179,255,0.6); }
-        .shadow-\\[0_0_20px_rgba\\(233\\,179\\,255\\,0\\.4\\)\\] { box-shadow: 0 0 20px rgba(233,179,255,0.4); }
+        .border-white/10 { border-color: rgba(255,255,255,0.1); }
+        .border-white/5 { border-color: rgba(255,255,255,0.05); }
+        .bg-white/5 { background-color: rgba(255,255,255,0.05); }
+        .bg-white/10 { background-color: rgba(255,255,255,0.1); }
+        .bg-primary/5 { background-color: rgba(233,179,255,0.05); }
+        .bg-primary/10 { background-color: rgba(233,179,255,0.1); }
+        .bg-primary/20 { background-color: rgba(233,179,255,0.2); }
+        .bg-secondary/10 { background-color: rgba(255,178,183,0.1); }
+        .bg-secondary/20 { background-color: rgba(255,178,183,0.2); }
+        .bg-tertiary/20 { background-color: rgba(231,196,72,0.2); }
+        .bg-error-container/20 { background-color: rgba(147,0,10,0.2); }
+        .bg-error-container/5 { background-color: rgba(147,0,10,0.05); }
+        .border-error/30 { border-color: rgba(255,180,171,0.3); }
+        .bg-surface-container-highest/50 { background-color: rgba(53,53,52,0.5); }
+        .shadow-primary/20 { box-shadow: 0 4px 14px rgba(233,179,255,0.2); }
+        .shadow-[0_0_8px_#ffb2b7] { box-shadow: 0 0 8px #ffb2b7; }
+        .shadow-[0_0_5px_#e9b3ff] { box-shadow: 0 0 5px #e9b3ff; }
+        .shadow-[0_0_20px_rgba(233,179,255,0.1)] { box-shadow: 0 0 20px rgba(233,179,255,0.1); }
+        .shadow-[0_0_15px_rgba(233,179,255,0.3)] { box-shadow: 0 0 15px rgba(233,179,255,0.3); }
+        .shadow-[0_0_8px_rgba(231,196,72,0.6)] { box-shadow: 0 0 8px rgba(231,196,72,0.6); }
+        .shadow-[0_0_8px_rgba(233,179,255,0.6)] { box-shadow: 0 0 8px rgba(233,179,255,0.6); }
+        .shadow-[0_0_30px_rgba(233,179,255,0.6)] { box-shadow: 0 0 30px rgba(233,179,255,0.6); }
+        .shadow-[0_0_20px_rgba(233,179,255,0.4)] { box-shadow: 0 0 20px rgba(233,179,255,0.4); }
 
-        /* Fuentes */
         .font-headline-lg { font-family: 'Montserrat', sans-serif; }
         .font-headline-md { font-family: 'Montserrat', sans-serif; }
         .font-body-md { font-family: 'Inter', sans-serif; }
@@ -269,10 +313,9 @@ const AdminProductos = () => {
         .text-stats-number { font-size: 36px; line-height: 44px; font-weight: 700; }
         .text-display-lg { font-size: 48px; line-height: 56px; letter-spacing: -0.02em; font-weight: 800; }
 
-        /* Espaciado */
         .px-margin-mobile { padding-left: 16px; padding-right: 16px; }
         .px-margin-desktop { padding-left: 48px; padding-right: 48px; }
-        .pt-24 { padding-top: 6rem; }
+        .pt-20 { padding-top: 5rem; }
         .pb-xl { padding-bottom: 64px; }
         .gap-gutter { gap: 24px; }
         .gap-base { gap: 8px; }
@@ -338,7 +381,7 @@ const AdminProductos = () => {
         .overflow-y-auto { overflow-y: auto; }
         .border-collapse { border-collapse: collapse; }
         .divide-y > * + * { border-top-width: 1px; }
-        .divide-white\\/5 > * + * { border-color: rgba(255,255,255,0.05); }
+        .divide-white/5 > * + * { border-color: rgba(255,255,255,0.05); }
         .space-y-xs > * + * { margin-top: 4px; }
         .space-y-sm > * + * { margin-top: 12px; }
         .space-y-md > * + * { margin-top: 24px; }
@@ -351,19 +394,19 @@ const AdminProductos = () => {
         .col-span-4 { grid-column: span 4 / span 4; }
         .row-span-2 { grid-row: span 2 / span 2; }
         .aspect-square { aspect-ratio: 1 / 1; }
-        .bg-black\\/70 { background-color: rgba(0,0,0,0.7); }
+        .bg-black/70 { background-color: rgba(0,0,0,0.7); }
         .backdrop-blur-sm { backdrop-filter: blur(4px); }
         .backdrop-blur-xl { backdrop-filter: blur(16px); }
         .backdrop-blur-2xl { backdrop-filter: blur(40px); }
-        .focus\\:border-primary\\/50:focus { border-color: rgba(233,179,255,0.5); }
+        .focus\\:border-primary/50:focus { border-color: rgba(233,179,255,0.5); }
         .focus\\:ring-0:focus { outline: none; box-shadow: none; }
-        .hover\\:bg-secondary\\/20:hover { background-color: rgba(255,178,183,0.2); }
-        .hover\\:bg-primary\\/10:hover { background-color: rgba(233,179,255,0.1); }
-        .hover\\:bg-white\\/5:hover { background-color: rgba(255,255,255,0.05); }
+        .hover\\:bg-secondary/20:hover { background-color: rgba(255,178,183,0.2); }
+        .hover\\:bg-primary/10:hover { background-color: rgba(233,179,255,0.1); }
+        .hover\\:bg-white/5:hover { background-color: rgba(255,255,255,0.05); }
         .hover\\:bg-surface-variant:hover { background-color: #353534; }
         .hover\\:text-primary:hover { color: #e9b3ff; }
         .hover\\:text-on-surface:hover { color: #e5e2e1; }
-        .hover\\:bg-error\\/10:hover { background-color: rgba(255,180,171,0.1); }
+        .hover\\:bg-error/10:hover { background-color: rgba(255,180,171,0.1); }
         .group-hover\\:text-primary:hover .group { color: #e9b3ff; }
         .group-hover\\:scale-110 .group:hover { transform: scale(1.1); }
         .group-hover\\:scale-110:hover .group { transform: scale(1.1); }
@@ -373,7 +416,7 @@ const AdminProductos = () => {
         .active\\:scale-90:active { transform: scale(0.9); }
         .bg-gradient-to-t { background-image: linear-gradient(to top, var(--tw-gradient-stops)); }
         .from-background { --tw-gradient-from: #131313; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(19,19,19,0)); }
-        .via-background\\/40 { --tw-gradient-to: rgba(19,19,19,0.4); }
+        .via-background/40 { --tw-gradient-to: rgba(19,19,19,0.4); }
         .to-transparent { --tw-gradient-to: transparent; }
         .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
         .text-4xl { font-size: 2.25rem; line-height: 2.5rem; }
@@ -439,13 +482,13 @@ const AdminProductos = () => {
         .text-outline { color: #9b8c9e; }
         .text-outline-variant { color: #4f4352; }
         .border-outline-variant { border-color: #4f4352; }
-        .bg-surface-container-highest\\/30 { background-color: rgba(53,53,52,0.3); }
-        .bg-primary\\/30 { background-color: rgba(233,179,255,0.3); }
+        .bg-surface-container-highest/30 { background-color: rgba(53,53,52,0.3); }
+        .bg-primary/30 { background-color: rgba(233,179,255,0.3); }
         .blur-3xl { filter: blur(3rem); }
-        .bg-error-container\\/20 { background-color: rgba(147,0,10,0.2); }
-        .border-error\\/30 { border-color: rgba(255,180,171,0.3); }
-        .border-primary\\/30 { border-color: rgba(233,179,255,0.3); }
-        .border-primary\\/50 { border-color: rgba(233,179,255,0.5); }
+        .bg-error-container/20 { background-color: rgba(147,0,10,0.2); }
+        .border-error/30 { border-color: rgba(255,180,171,0.3); }
+        .border-primary/30 { border-color: rgba(233,179,255,0.3); }
+        .border-primary/50 { border-color: rgba(233,179,255,0.5); }
         .filter { filter: var(--tw-filter); }
         .max-h-\\[600px\\] { max-height: 600px; }
         .pointer-events-none { pointer-events: none; }
@@ -472,9 +515,9 @@ const AdminProductos = () => {
         .border-l-secondary { border-left-color: #ffb2b7; }
         .border-t-2 { border-top-width: 2px; }
         .border-t-primary { border-top-color: #e9b3ff; }
-        .stroke-white\\/10 { stroke: rgba(255,255,255,0.1); }
+        .stroke-white/10 { stroke: rgba(255,255,255,0.1); }
         .stroke-primary { stroke: #e9b3ff; }
-        .stroke-primary\\/30 { stroke: rgba(233,179,255,0.3); }
+        .stroke-primary/30 { stroke: rgba(233,179,255,0.3); }
         .fill-none { fill: none; }
         .stroke-linecap-round { stroke-linecap: round; }
         .uppercase { text-transform: uppercase; }
@@ -491,11 +534,9 @@ const AdminProductos = () => {
           .sm\\:pb-0 { padding-bottom: 0; }
           .sm\\:w-auto { width: auto; }
         }
-
         @media (min-width: 768px) {
           .md\\:flex { display: flex; }
           .md\\:hidden { display: none; }
-          .md\\:ml-64 { margin-left: 16rem; }
           .md\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
           .md\\:col-span-2 { grid-column: span 2 / span 2; }
           .md\\:flex-row { flex-direction: row; }
@@ -515,310 +556,262 @@ const AdminProductos = () => {
         }
       `}</style>
 
-      {/* ===== SIDEBAR ===== */}
-      <aside className="h-screen w-64 fixed left-0 top-0 z-50 bg-surface-container-lowest/80 backdrop-blur-2xl border-r border-white/5 flex flex-col py-lg hidden md:flex">
-        <div className="px-md mb-xl">
-          <h1 className="font-headline-md text-headline-md text-primary tracking-tighter">Pulse Admin</h1>
-          <p className="text-[10px] text-on-surface-variant uppercase tracking-[0.2em] mt-1">Peak Hours Active</p>
-        </div>
-        <nav className="flex-1 px-sm space-y-base">
-          <a className="flex items-center gap-sm px-md py-base rounded-lg text-on-surface-variant hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">dashboard</span>
-            <span className="font-label-md text-label-md">Dashboard</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base rounded-lg text-on-surface-variant hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">group</span>
-            <span className="font-label-md text-label-md">Users</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base rounded-lg bg-primary/20 text-primary border-r-2 border-primary shadow-[0_0_15px_rgba(233,179,255,0.3)] group" href="#">
-            <span className="material-symbols-outlined">inventory_2</span>
-            <span className="font-label-md text-label-md">Inventory</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base rounded-lg text-on-surface-variant hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">payments</span>
-            <span className="font-label-md text-label-md">Sales</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base rounded-lg text-on-surface-variant hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">event_seat</span>
-            <span className="font-label-md text-label-md">Reservations</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base rounded-lg text-on-surface-variant hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">music_note</span>
-            <span className="font-label-md text-label-md">Music</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base rounded-lg text-on-surface-variant hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">calendar_today</span>
-            <span className="font-label-md text-label-md">Events</span>
-          </a>
-        </nav>
-        <div className="px-sm pt-lg mt-auto border-t border-white/5">
-          <a className="flex items-center gap-sm px-md py-base rounded-lg text-on-surface-variant hover:bg-white/5 transition-all" href="#">
-            <span className="material-symbols-outlined">help</span>
-            <span className="font-label-md text-label-md">Support</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-base rounded-lg text-on-surface-variant hover:bg-white/5 transition-all" href="/home">
-            <span className="material-symbols-outlined">logout</span>
-            <span className="font-label-md text-label-md">Logout</span>
-          </a>
-        </div>
-      </aside>
-
       {/* ===== MAIN CONTENT ===== */}
-      <main className="md:ml-64 min-h-screen relative">
-        {/* Header */}
-        <header className="w-full sticky top-0 z-40 bg-surface/70 dark:bg-surface-container-low/70 backdrop-blur-xl border-b border-white/10 flex justify-between items-center px-margin-mobile md:px-margin-desktop py-base">
-          <div className="flex items-center gap-md">
-            <span className="md:hidden material-symbols-outlined text-primary text-3xl">menu</span>
-            <h2 className="font-headline-md text-headline-md text-on-surface hidden md:block">Menu &amp; Stock Inventory</h2>
-            <h2 className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface md:hidden">Inventory</h2>
+      <main className="min-h-screen pt-20 px-margin-mobile md:px-margin-desktop pb-xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h2 className="font-headline-md text-headline-md text-on-surface">Inventario de Productos</h2>
+            <p className="text-on-surface-variant text-sm">Gestión de stock y productos disponibles para la venta.</p>
           </div>
-          <div className="flex items-center gap-md">
-            <div className="hidden lg:flex items-center bg-surface-container-high rounded-full px-4 py-2 border border-white/5">
-              <span className="material-symbols-outlined text-on-surface-variant text-sm mr-2">search</span>
+          <div className="flex items-center gap-4">
+            <div className="relative hidden md:block">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
               <input
-                className="bg-transparent border-none focus:ring-0 text-label-md placeholder-on-surface-variant w-48"
+                className="bg-surface-container-high border border-white/10 rounded-full pl-10 pr-4 py-2 text-on-surface w-48 focus:border-primary/50 focus:outline-none transition-all"
                 placeholder="Buscar producto..."
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-4">
-              <span className="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">notifications</span>
-              <span className="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">settings</span>
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-primary/50">
-                <img
-                  className="w-full h-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBR-nkerXR9FExpLIhI6M49_naFB6ZpRVOBmsHmd_xngrNUplpq_X4Mei9SAz0GQXJWKg6fOstgVwkKCuby-5hEsiXekUeEBUA5H5Up3d35F5X6FUkmS6Am3OIhW6wmJaRBYiYZcPWHFql-OPHDWayLCXKe24a3_AloIvQRTz75IhrZMv1Gdv38XVjn7ZyXnNQclWGwyB_rQhvcKqsj_1NBytbZKB5bdRnM4RGreLt02zEfCBGOoxbvxQ4Cah3x95_4Krh941bWj5hV"
-                  alt="avatar"
-                />
-              </div>
-            </div>
+            <button
+              onClick={abrirModalCrear}
+              className="bg-primary text-on-primary font-bold px-4 py-2 rounded-lg flex items-center gap-2 hover:brightness-110 transition-all active:scale-95 shadow-lg shadow-primary/20"
+            >
+              <span className="material-symbols-outlined text-[20px]">add</span>
+              <span className="text-label-md">Nuevo Producto</span>
+            </button>
           </div>
-        </header>
+        </div>
 
-        {/* Content Canvas */}
-        <div className="p-margin-mobile md:p-margin-desktop space-y-lg">
-          {/* Quick Actions & Alerts Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
-            {/* Alertas de Stock Bajo */}
-            <div className="glass-card p-md rounded-xl col-span-1 md:col-span-2 flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-md">
-                <div>
-                  <h3 className="font-headline-md text-headline-md text-primary">Alertas de Stock Bajo</h3>
-                  <p className="text-on-surface-variant">{productosBajoStock.length} productos requieren reposición inmediata</p>
-                </div>
-                <span className="material-symbols-outlined text-error text-3xl">warning</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-                {productosBajoStock.slice(0, 4).map((p) => (
-                  <div key={p.id} className="bg-error-container/20 border border-error/30 p-sm rounded-lg flex items-center justify-between">
-                    <div>
-                      <p className="font-label-md text-label-md text-on-surface">{p.nombre}</p>
-                      <p className="text-xs text-error">{p.stock} unidades restantes</p>
-                    </div>
-                    <button
-                      onClick={() => abrirModalEditar(p)}
-                      className="bg-error text-on-error px-3 py-1 rounded text-xs font-bold uppercase tracking-wider hover:brightness-110 transition"
-                    >
-                      Reabastecer
-                    </button>
-                  </div>
-                ))}
-                {productosBajoStock.length === 0 && (
-                  <p className="text-on-surface-variant col-span-2 text-center py-4">¡Todo en stock! No hay alertas.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Add Product & Supplier Stats */}
-            <div className="glass-card p-md rounded-xl flex flex-col justify-center items-center gap-md">
-              <button
-                onClick={abrirModalCrear}
-                className="w-full py-4 bg-primary text-on-primary font-bold rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(233,179,255,0.4)]"
-              >
-                <span className="material-symbols-outlined">add_circle</span>
-                <span>AÑADIR PRODUCTO</span>
-              </button>
-              <button className="w-full py-4 border border-primary text-primary font-bold rounded-lg flex items-center justify-center gap-2 hover:bg-primary/10 transition-all">
-                <span className="material-symbols-outlined">local_shipping</span>
-                <span>ÓRDENES PROVEEDOR</span>
-              </button>
-            </div>
+        {/* Buscador móvil */}
+        <div className="md:hidden mb-4">
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+            <input
+              className="bg-surface-container-high border border-white/10 rounded-full pl-10 pr-4 py-2 text-on-surface w-full focus:border-primary/50 focus:outline-none transition-all"
+              placeholder="Buscar producto..."
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
+        </div>
 
-          {/* Main Inventory Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
-            {/* Stock Table Container */}
-            <div className="lg:col-span-8 glass-card rounded-xl overflow-hidden flex flex-col">
-              <div className="p-md border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md">
-                <div className="flex gap-4 overflow-x-auto pb-2 sm:pb-0 w-full sm:w-auto custom-scrollbar">
-                  {categoriasUnicas.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setCategoriaFiltro(cat)}
-                      className={`px-4 py-2 rounded-full font-label-md text-label-md whitespace-nowrap transition ${
-                        categoriaFiltro === cat
-                          ? "bg-primary/20 text-primary border border-primary/30"
-                          : "text-on-surface-variant hover:text-on-surface"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-                <span className="text-on-surface-variant font-label-md text-label-md">{totalItems} Items Totales</span>
+        {/* Quick Actions & Alerts Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-8">
+          <div className="glass-card p-md rounded-xl col-span-1 md:col-span-2 flex flex-col justify-between">
+            <div className="flex justify-between items-start mb-md">
+              <div>
+                <h3 className="font-headline-md text-headline-md text-primary">Alertas de Stock Bajo</h3>
+                <p className="text-on-surface-variant">{productosBajoStock.length} productos requieren reposición inmediata</p>
               </div>
-              <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-left">
-                  <thead className="bg-white/5">
-                    <tr>
-                      <th className="px-md py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Producto</th>
-                      <th className="px-md py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Categoría</th>
-                      <th className="px-md py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-center">Nivel Stock</th>
-                      <th className="px-md py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Precio</th>
-                      <th className="px-md py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {loading ? (
-                      <tr><td colSpan="5" className="text-center py-4 text-on-surface-variant">Cargando...</td></tr>
-                    ) : productosFiltrados.length === 0 ? (
-                      <tr><td colSpan="5" className="text-center py-4 text-on-surface-variant">No hay productos</td></tr>
-                    ) : (
-                      productosFiltrados.map((p) => {
-                        const porcentaje = p.stockTotal > 0 ? Math.round((p.stock / p.stockTotal) * 100) : 0;
-                        const esBajo = porcentaje < 30;
-                        return (
-                          <tr key={p.id} className={`hover:bg-white/5 transition-colors ${esBajo ? "bg-error-container/5" : ""}`}>
-                            <td className="px-md py-4 flex items-center gap-3">
-                              <div className="w-10 h-10 bg-surface-container rounded-lg border border-white/10 flex items-center justify-center">
-                                <span className={`material-symbols-outlined ${esBajo ? "text-error" : "text-primary"}`}>
-                                  {p.categoria?.toLowerCase().includes("licor") ? "liquor" :
-                                   p.categoria?.toLowerCase().includes("cóctel") ? "local_bar" :
-                                   p.categoria?.toLowerCase().includes("refresco") ? "water_drop" :
-                                   p.categoria?.toLowerCase().includes("snack") ? "fastfood" : "inventory_2"}
-                                </span>
-                              </div>
-                              <span className="font-label-md text-label-md">{p.nombre}</span>
-                            </td>
-                            <td className="px-md py-4 text-on-surface-variant">{p.categoria || "—"}</td>
-                            <td className="px-md py-4 min-w-[200px]">
-                              <div className="w-full flex items-center gap-3">
-                                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                  <div className={`h-full ${esBajo ? "bg-error" : "bg-primary"}`} style={{ width: `${Math.min(porcentaje, 100)}%` }}></div>
-                                </div>
-                                <span className={`text-xs font-bold ${esBajo ? "text-error" : "text-on-surface"}`}>
-                                  {p.stock}/{p.stockTotal}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-md py-4 font-stats-number text-on-surface text-sm">${p.precio?.toFixed(2) || "0.00"}</td>
-                            <td className="px-md py-4">
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => abrirModalEditar(p)}
-                                  className="text-primary hover:underline text-xs"
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(p.id)}
-                                  className="text-error hover:underline text-xs"
-                                >
-                                  Eliminar
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {/* Pagination (simplificada) */}
-              <div className="p-md flex justify-between items-center border-t border-white/5">
-                <button className="text-on-surface-variant hover:text-primary flex items-center gap-1 transition-colors">
-                  <span className="material-symbols-outlined">chevron_left</span> Anterior
-                </button>
-                <div className="flex gap-2">
-                  <span className="px-3 py-1 bg-primary text-on-primary rounded font-bold">1</span>
-                  <span className="px-3 py-1 text-on-surface-variant hover:bg-white/5 rounded cursor-pointer">2</span>
-                  <span className="px-3 py-1 text-on-surface-variant hover:bg-white/5 rounded cursor-pointer">3</span>
-                </div>
-                <button className="text-on-surface-variant hover:text-primary flex items-center gap-1 transition-colors">
-                  Siguiente <span className="material-symbols-outlined">chevron_right</span>
-                </button>
-              </div>
+              <span className="material-symbols-outlined text-error text-3xl">warning</span>
             </div>
-
-            {/* Right Column Widgets */}
-            <div className="lg:col-span-4 space-y-gutter">
-              {/* Supplier Orders Status */}
-              <div className="glass-card rounded-xl p-md overflow-hidden relative">
-                <div className="relative z-10">
-                  <h4 className="font-headline-md text-headline-md text-on-surface mb-md flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">schedule</span>
-                    Pedidos en Curso
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-2 h-2 rounded-full bg-tertiary shadow-[0_0_8px_rgba(231,196,72,0.6)] animate-pulse"></div>
-                      <div className="flex-1">
-                        <p className="font-label-md text-label-md text-on-surface">Distribuidora Premium BCN</p>
-                        <p className="text-xs text-on-surface-variant italic">Llegada estimada: Hoy, 18:00</p>
-                      </div>
-                      <span className="text-xs font-bold text-tertiary">PENDIENTE</span>
-                    </div>
-                    <div className="flex items-center gap-4 opacity-70">
-                      <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(233,179,255,0.6)]"></div>
-                      <div className="flex-1">
-                        <p className="font-label-md text-label-md text-on-surface">Bebidas Global S.L.</p>
-                        <p className="text-xs text-on-surface-variant italic">Completado ayer</p>
-                      </div>
-                      <span className="text-xs font-bold text-primary">RECIBIDO</span>
-                    </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
+              {productosBajoStock.slice(0, 4).map((p) => (
+                <div key={p.id} className="bg-error-container/20 border border-error/30 p-sm rounded-lg flex items-center justify-between">
+                  <div>
+                    <p className="font-label-md text-label-md text-on-surface">{p.nombre}</p>
+                    <p className="text-xs text-error">{p.stock} unidades restantes</p>
                   </div>
-                  <button className="mt-lg w-full py-3 border border-white/10 rounded-lg text-label-md text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-all">
-                    Ver historial de órdenes
+                  <button
+                    onClick={() => abrirModalEditar(p)}
+                    className="bg-error text-on-error px-3 py-1 rounded text-xs font-bold uppercase tracking-wider hover:brightness-110 transition"
+                  >
+                    Reabastecer
                   </button>
                 </div>
-              </div>
+              ))}
+              {productosBajoStock.length === 0 && (
+                <p className="text-on-surface-variant col-span-2 text-center py-4">¡Todo en stock! No hay alertas.</p>
+              )}
+            </div>
+          </div>
 
-              {/* Performance Gauge */}
-              <div className="glass-card rounded-xl p-md text-center">
-                <h4 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest mb-md">Rotación de Stock Semanal</h4>
-                <div className="relative w-48 h-48 mx-auto flex items-center justify-center mb-md">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle className="stroke-white/10 fill-none" cx="50%" cy="50%" r="70" strokeWidth="12"></circle>
-                    <circle
-                      className="stroke-primary fill-none"
-                      cx="50%" cy="50%" r="70"
-                      strokeDasharray="440"
-                      strokeDashoffset={440 - (440 * (stockPromedio / 100))}
-                      strokeLinecap="round"
-                      strokeWidth="12"
-                    ></circle>
-                  </svg>
-                  <div className="absolute flex flex-col items-center">
-                    <span className="font-stats-number text-stats-number text-on-surface">{stockPromedio}%</span>
-                    <span className="text-xs text-on-surface-variant font-bold">ALTO</span>
+          <div className="glass-card p-md rounded-xl flex flex-col justify-center items-center gap-md">
+            <button
+              onClick={abrirModalCrear}
+              className="w-full py-4 bg-primary text-on-primary font-bold rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(233,179,255,0.4)]"
+            >
+              <span className="material-symbols-outlined">add_circle</span>
+              <span>AÑADIR PRODUCTO</span>
+            </button>
+            <button
+              onClick={abrirModalProveedor}
+              className="w-full py-4 border border-primary text-primary font-bold rounded-lg flex items-center justify-center gap-2 hover:bg-primary/10 transition-all"
+            >
+              <span className="material-symbols-outlined">local_shipping</span>
+              <span>ÓRDENES PROVEEDOR</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Main Inventory Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+          <div className="lg:col-span-8 glass-card rounded-xl overflow-hidden flex flex-col">
+            <div className="p-md border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md">
+              <div className="flex gap-4 overflow-x-auto pb-2 sm:pb-0 w-full sm:w-auto custom-scrollbar">
+                {categoriasUnicas.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoriaFiltro(cat)}
+                    className={`px-4 py-2 rounded-full font-label-md text-label-md whitespace-nowrap transition ${
+                      categoriaFiltro === cat
+                        ? "bg-primary/20 text-primary border border-primary/30"
+                        : "text-on-surface-variant hover:text-on-surface"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <span className="text-on-surface-variant font-label-md text-label-md">{totalItems} Items Totales</span>
+            </div>
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left">
+                <thead className="bg-white/5">
+                  <tr>
+                    <th className="px-md py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Producto</th>
+                    <th className="px-md py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Categoría</th>
+                    <th className="px-md py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-center">Nivel Stock</th>
+                    <th className="px-md py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Precio</th>
+                    <th className="px-md py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Acción</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {loading ? (
+                    <tr><td colSpan="5" className="text-center py-4 text-on-surface-variant">Cargando...</td></tr>
+                  ) : productosFiltrados.length === 0 ? (
+                    <tr><td colSpan="5" className="text-center py-4 text-on-surface-variant">No hay productos</td></tr>
+                  ) : (
+                    productosFiltrados.map((p) => {
+                      const porcentaje = p.stockTotal > 0 ? Math.round((p.stock / p.stockTotal) * 100) : 0;
+                      const esBajo = porcentaje < 30;
+                      return (
+                        <tr key={p.id} className={`hover:bg-white/5 transition-colors ${esBajo ? "bg-error-container/5" : ""}`}>
+                          <td className="px-md py-4 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-surface-container rounded-lg border border-white/10 flex items-center justify-center">
+                              <span className={`material-symbols-outlined ${esBajo ? "text-error" : "text-primary"}`}>
+                                {p.categoria?.toLowerCase().includes("licor") ? "liquor" :
+                                 p.categoria?.toLowerCase().includes("cóctel") ? "local_bar" :
+                                 p.categoria?.toLowerCase().includes("refresco") ? "water_drop" :
+                                 p.categoria?.toLowerCase().includes("snack") ? "fastfood" : "inventory_2"}
+                              </span>
+                            </div>
+                            <span className="font-label-md text-label-md">{p.nombre}</span>
+                          </td>
+                          <td className="px-md py-4 text-on-surface-variant">{p.categoria || "—"}</td>
+                          <td className="px-md py-4 min-w-[200px]">
+                            <div className="w-full flex items-center gap-3">
+                              <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                <div className={`h-full ${esBajo ? "bg-error" : "bg-primary"}`} style={{ width: `${Math.min(porcentaje, 100)}%` }}></div>
+                              </div>
+                              <span className={`text-xs font-bold ${esBajo ? "text-error" : "text-on-surface"}`}>
+                                {p.stock}/{p.stockTotal}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-md py-4 font-stats-number text-on-surface text-sm">${p.precio?.toFixed(2) || "0.00"}</td>
+                          <td className="px-md py-4">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => abrirModalEditar(p)}
+                                className="text-primary hover:underline text-xs"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => handleDelete(p.id)}
+                                className="text-error hover:underline text-xs"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="p-md flex justify-between items-center border-t border-white/5">
+              <button className="text-on-surface-variant hover:text-primary flex items-center gap-1 transition-colors">
+                <span className="material-symbols-outlined">chevron_left</span> Anterior
+              </button>
+              <div className="flex gap-2">
+                <span className="px-3 py-1 bg-primary text-on-primary rounded font-bold">1</span>
+                <span className="px-3 py-1 text-on-surface-variant hover:bg-white/5 rounded cursor-pointer">2</span>
+                <span className="px-3 py-1 text-on-surface-variant hover:bg-white/5 rounded cursor-pointer">3</span>
+              </div>
+              <button className="text-on-surface-variant hover:text-primary flex items-center gap-1 transition-colors">
+                Siguiente <span className="material-symbols-outlined">chevron_right</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="lg:col-span-4 space-y-gutter">
+            <div className="glass-card rounded-xl p-md overflow-hidden relative">
+              <div className="relative z-10">
+                <h4 className="font-headline-md text-headline-md text-on-surface mb-md flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">schedule</span>
+                  Pedidos en Curso
+                </h4>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-2 h-2 rounded-full bg-tertiary shadow-[0_0_8px_rgba(231,196,72,0.6)] animate-pulse"></div>
+                    <div className="flex-1">
+                      <p className="font-label-md text-label-md text-on-surface">Distribuidora Premium BCN</p>
+                      <p className="text-xs text-on-surface-variant italic">Llegada estimada: Hoy, 18:00</p>
+                    </div>
+                    <span className="text-xs font-bold text-tertiary">PENDIENTE</span>
+                  </div>
+                  <div className="flex items-center gap-4 opacity-70">
+                    <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(233,179,255,0.6)]"></div>
+                    <div className="flex-1">
+                      <p className="font-label-md text-label-md text-on-surface">Bebidas Global S.L.</p>
+                      <p className="text-xs text-on-surface-variant italic">Completado ayer</p>
+                    </div>
+                    <span className="text-xs font-bold text-primary">RECIBIDO</span>
                   </div>
                 </div>
-                <p className="text-body-md text-on-surface-variant px-4">
-                  La rotación es un 12% superior a la semana pasada debido al evento VIP del viernes.
-                </p>
+                <button className="mt-lg w-full py-3 border border-white/10 rounded-lg text-label-md text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-all">
+                  Ver historial de órdenes
+                </button>
               </div>
+            </div>
 
-              {/* Visual Accent Card */}
-              <div className="h-64 rounded-xl overflow-hidden relative group">
-                <div className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCLL_wpe6AuOtFX-XOH_Y8F7XB0F4_oXvTJkGflmu62higEwR3zpbCJWiUu2eJS_Jhpt6tUJWP1EeK5u7Gissdos1Hvc6MsrEslzZ9XzuIMk5WOXdMHyVDj-_XMfje4nb-zdvYjMvV7G_aShiRB--pI76xaRVFUNcit-0IZ-Mo8DkjX-H3J2QWbltrHoO3aE4sfUSpX2P01vIJZzYCcaJ5cOpF53dIMwbFne3GLgao2e_YCkdXjLcH1oGtvrKAqNUa0l5WSoDly-2Rr')" }}></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
-                <div className="absolute bottom-4 left-4 right-4">
-                  <span className="text-xs font-bold text-primary uppercase tracking-widest">Novedad</span>
-                  <h5 className="font-headline-md text-headline-md leading-tight text-on-surface">Colección Gin Premium Japonesa</h5>
+            <div className="glass-card rounded-xl p-md text-center">
+              <h4 className="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest mb-md">Rotación de Stock Semanal</h4>
+              <div className="relative w-48 h-48 mx-auto flex items-center justify-center mb-md">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle className="stroke-white/10 fill-none" cx="50%" cy="50%" r="70" strokeWidth="12"></circle>
+                  <circle
+                    className="stroke-primary fill-none"
+                    cx="50%" cy="50%" r="70"
+                    strokeDasharray="440"
+                    strokeDashoffset={440 - (440 * (stockPromedio / 100))}
+                    strokeLinecap="round"
+                    strokeWidth="12"
+                  ></circle>
+                </svg>
+                <div className="absolute flex flex-col items-center">
+                  <span className="font-stats-number text-stats-number text-on-surface">{stockPromedio}%</span>
+                  <span className="text-xs text-on-surface-variant font-bold">ALTO</span>
                 </div>
+              </div>
+              <p className="text-body-md text-on-surface-variant px-4">
+                La rotación es un 12% superior a la semana pasada debido al evento VIP del viernes.
+              </p>
+            </div>
+
+            <div className="h-64 rounded-xl overflow-hidden relative group">
+              <div className="absolute inset-0 bg-cover bg-center group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCLL_wpe6AuOtFX-XOH_Y8F7XB0F4_oXvTJkGflmu62higEwR3zpbCJWiUu2eJS_Jhpt6tUJWP1EeK5u7Gissdos1Hvc6MsrEslzZ9XzuIMk5WOXdMHyVDj-_XMfje4nb-zdvYjMvV7G_aShiRB--pI76xaRVFUNcit-0IZ-Mo8DkjX-H3J2QWbltrHoO3aE4sfUSpX2P01vIJZzYCcaJ5cOpF53dIMwbFne3GLgao2e_YCkdXjLcH1oGtvrKAqNUa0l5WSoDly-2Rr')" }}></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"></div>
+              <div className="absolute bottom-4 left-4 right-4">
+                <span className="text-xs font-bold text-primary uppercase tracking-widest">Novedad</span>
+                <h5 className="font-headline-md text-headline-md leading-tight text-on-surface">Colección Gin Premium Japonesa</h5>
               </div>
             </div>
           </div>
@@ -845,122 +838,172 @@ const AdminProductos = () => {
         </div>
       )}
 
-      {/* ===== MODAL ===== */}
+      {/* ===== MODAL DE PRODUCTO (con scroll) ===== */}
       {modalAbierto && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="glass-card rounded-2xl p-6 w-full max-w-md max-h-[90vh] flex flex-col relative border border-white/20 shadow-2xl">
+            <button
+              onClick={cerrarModal}
+              className="absolute top-3 right-3 text-on-surface-variant hover:text-primary transition-colors z-10"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <h3 className="font-headline-md text-headline-md text-on-surface mb-4 flex-shrink-0">
+              {modoEdicion ? "Editar Producto" : "Nuevo Producto"}
+            </h3>
+            <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-label-md text-on-surface-variant mb-1">Nombre *</label>
+                  <input
+                    type="text"
+                    name="nombre"
+                    value={productoActual.nombre || ""}
+                    onChange={handleChange}
+                    className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
+                    required
+                    placeholder="ej. Whisky Jack Daniel's"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-label-md text-on-surface-variant mb-1">Categoría *</label>
+                  <select
+                    name="categoria"
+                    value={productoActual.categoria || ""}
+                    onChange={handleChange}
+                    className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
+                    required
+                  >
+                    <option value="">Seleccionar</option>
+                    <option value="Licores">Licores</option>
+                    <option value="Cócteles">Cócteles</option>
+                    <option value="Refrescos">Refrescos</option>
+                    <option value="Snacks">Snacks</option>
+                    <option value="Otros">Otros</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-label-md text-on-surface-variant mb-1">Stock Actual</label>
+                  <input
+                    type="number"
+                    name="stock"
+                    value={productoActual.stock || 0}
+                    onChange={handleChange}
+                    className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
+                    min="0"
+                    step="1"
+                  />
+                  <p className="text-[10px] text-on-surface-variant mt-1">Debe ser un número entero</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-label-md text-on-surface-variant mb-1">Capacidad Total *</label>
+                  <input
+                    type="number"
+                    name="stockTotal"
+                    value={productoActual.stockTotal || 10}
+                    onChange={handleChange}
+                    className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
+                    min="1"
+                    step="1"
+                    required
+                  />
+                  <p className="text-[10px] text-on-surface-variant mt-1">Debe ser mayor a 0</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-label-md text-on-surface-variant mb-1">Precio ($) *</label>
+                  <input
+                    type="number"
+                    name="precio"
+                    value={productoActual.precio || 0}
+                    onChange={handleChange}
+                    className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                  <p className="text-[10px] text-on-surface-variant mt-1">No puede ser negativo</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-label-md text-on-surface-variant mb-1">Imagen (URL)</label>
+                  <input
+                    type="text"
+                    name="imagen"
+                    value={productoActual.imagen || ""}
+                    onChange={handleChange}
+                    className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
+                    placeholder="https://ejemplo.com/imagen.jpg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-label-md text-on-surface-variant mb-1">Descripción</label>
+                  <textarea
+                    name="descripcion"
+                    value={productoActual.descripcion || ""}
+                    onChange={handleChange}
+                    className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none resize-none"
+                    rows="2"
+                    placeholder="Descripción breve..."
+                  />
+                </div>
+                <div className="flex gap-3 pt-2 sticky bottom-0 bg-surface-container/90 backdrop-blur-sm py-2 -mx-2 px-2 rounded-lg">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-primary text-on-primary py-2 rounded-xl font-label-md hover:brightness-110 transition-all active:scale-95"
+                  >
+                    {modoEdicion ? "Actualizar" : "Guardar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cerrarModal}
+                    className="flex-1 bg-surface-container-high border border-white/10 text-on-surface-variant py-2 rounded-xl font-label-md hover:bg-white/5 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL DE PROVEEDORES ===== */}
+      {modalProveedorAbierto && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="glass-card rounded-2xl p-6 w-full max-w-md relative border border-white/20 shadow-2xl">
             <button
-              onClick={cerrarModal}
+              onClick={cerrarModalProveedor}
               className="absolute top-3 right-3 text-on-surface-variant hover:text-primary transition-colors"
             >
               <span className="material-symbols-outlined">close</span>
             </button>
-            <h3 className="font-headline-md text-headline-md text-on-surface mb-4">
-              {modoEdicion ? "Editar Producto" : "Nuevo Producto"}
-            </h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <h3 className="font-headline-md text-headline-md text-on-surface mb-4">Enviar Mensaje a Proveedores</h3>
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-label-md text-on-surface-variant mb-1">Nombre</label>
-                <input
-                  type="text"
-                  name="nombre"
-                  value={productoActual.nombre || ""}
-                  onChange={handleChange}
-                  className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-label-md text-on-surface-variant mb-1">Categoría</label>
-                <select
-                  name="categoria"
-                  value={productoActual.categoria || ""}
-                  onChange={handleChange}
-                  className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
-                  required
-                >
-                  <option value="">Seleccionar</option>
-                  <option value="Licores">Licores</option>
-                  <option value="Cócteles">Cócteles</option>
-                  <option value="Refrescos">Refrescos</option>
-                  <option value="Snacks">Snacks</option>
-                  <option value="Otros">Otros</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-label-md text-on-surface-variant mb-1">Stock Actual</label>
-                <input
-                  type="number"
-                  name="stock"
-                  value={productoActual.stock || 0}
-                  onChange={handleChange}
-                  className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
-                  required
-                  min="0"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-label-md text-on-surface-variant mb-1">Capacidad Total</label>
-                <input
-                  type="number"
-                  name="stockTotal"
-                  value={productoActual.stockTotal || 10}
-                  onChange={handleChange}
-                  className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
-                  required
-                  min="1"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-label-md text-on-surface-variant mb-1">Precio ($)</label>
-                <input
-                  type="number"
-                  name="precio"
-                  value={productoActual.precio || 0}
-                  onChange={handleChange}
-                  className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
-                  required
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-label-md text-on-surface-variant mb-1">Imagen (URL)</label>
-                <input
-                  type="text"
-                  name="imagen"
-                  value={productoActual.imagen || ""}
-                  onChange={handleChange}
-                  className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
-                  placeholder="https://ejemplo.com/imagen.jpg"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-label-md text-on-surface-variant mb-1">Descripción</label>
+                <label className="block text-xs font-label-md text-on-surface-variant mb-1">Mensaje</label>
                 <textarea
-                  name="descripcion"
-                  value={productoActual.descripcion || ""}
-                  onChange={handleChange}
+                  value={mensajeProveedor}
+                  onChange={(e) => setMensajeProveedor(e.target.value)}
                   className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none resize-none"
-                  rows="2"
-                ></textarea>
+                  rows="4"
+                  placeholder="Escribe tu mensaje para los proveedores..."
+                />
               </div>
               <div className="flex gap-3 pt-2">
                 <button
-                  type="submit"
+                  onClick={enviarMensajeProveedor}
                   className="flex-1 bg-primary text-on-primary py-2 rounded-xl font-label-md hover:brightness-110 transition-all active:scale-95"
                 >
-                  {modoEdicion ? "Actualizar" : "Guardar"}
+                  Enviar Mensaje
                 </button>
                 <button
                   type="button"
-                  onClick={cerrarModal}
+                  onClick={cerrarModalProveedor}
                   className="flex-1 bg-surface-container-high border border-white/10 text-on-surface-variant py-2 rounded-xl font-label-md hover:bg-white/5 transition-all"
                 >
                   Cancelar
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

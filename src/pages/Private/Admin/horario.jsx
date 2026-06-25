@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { horarioService } from "../../../services/horarioService"; // Ajusta la ruta
+import { horarioService } from "../../../services/horarioService";
+import NavbarAdmin from "../../../components/Layout/NavbarHeader";
 
 const AdminHorarios = () => {
-  // Estados
+  // ===== ESTADOS =====
   const [horarios, setHorarios] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -11,7 +12,7 @@ const AdminHorarios = () => {
     id: null,
     documento: "",
     nombre: "",
-    rol: "Seguridad", // "Seguridad", "Bartender", "Server"
+    rol: "Seguridad",
     dia: "Lun",
     horaInicio: "22:00",
     horaFin: "06:00",
@@ -19,17 +20,36 @@ const AdminHorarios = () => {
   });
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ visible: false, mensaje: "", tipo: "" });
-  const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false);
-  const [semanaActual, setSemanaActual] = useState(0); // 0 = actual, 1 = siguiente, -1 = anterior
+  const [semanaOffset, setSemanaOffset] = useState(0); // 0 = actual, 1 = siguiente, -1 = anterior
   const [coberturaRequests] = useState([
     { id: 1, nombre: "Javier S.", turno: "Hoy, 23:00 - Seguridad", estado: "urgente" },
     { id: 2, nombre: "Lucia M.", turno: "Mañana, 20:00 - Bartender", estado: "pendiente" },
   ]);
 
-  // Días de la semana (fijos para el calendario)
   const diasSemana = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
 
-  // Cargar horarios al montar
+  // ===== FUNCIÓN PARA OBTENER FECHAS DE LA SEMANA =====
+  const getSemanaFechas = (offset) => {
+    const hoy = new Date();
+    const diaActual = hoy.getDay(); // 0=Dom, 1=Lun, ...
+    const diff = (diaActual === 0 ? 6 : diaActual - 1); // Ajuste para que empiece en Lun
+    const lunes = new Date(hoy);
+    lunes.setDate(hoy.getDate() - diff + offset * 7);
+    const fechas = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(lunes);
+      d.setDate(lunes.getDate() + i);
+      fechas.push(d);
+    }
+    return fechas;
+  };
+
+  const semanaFechas = getSemanaFechas(semanaOffset);
+  const semanaInicio = semanaFechas[0];
+  const semanaFin = semanaFechas[6];
+  const semanaTexto = `${semanaInicio.getDate()} - ${semanaFin.getDate()} ${semanaFin.toLocaleString('es-ES', { month: 'long' })} ${semanaFin.getFullYear()}`;
+
+  // ===== CARGAR HORARIOS =====
   useEffect(() => {
     cargarHorarios();
   }, []);
@@ -54,14 +74,51 @@ const AdminHorarios = () => {
     }
   };
 
-  // Toast
+  // ===== TOAST =====
   const mostrarToast = (mensaje, tipo = "success") => {
     setToast({ visible: true, mensaje, tipo });
     setTimeout(() => setToast({ visible: false, mensaje: "", tipo: "" }), 3000);
   };
 
-  // CRUD
+  // ===== VALIDACIONES =====
+  const validarHorario = (horario) => {
+    if (!horario.documento.trim()) {
+      mostrarToast("El documento es obligatorio", "error");
+      return false;
+    }
+    if (!horario.nombre.trim()) {
+      mostrarToast("El nombre es obligatorio", "error");
+      return false;
+    }
+    if (!horario.dia) {
+      mostrarToast("Debes seleccionar un día", "error");
+      return false;
+    }
+    if (!horario.horaInicio || !horario.horaFin) {
+      mostrarToast("Las horas de inicio y fin son obligatorias", "error");
+      return false;
+    }
+    // Verificar que horaInicio < horaFin
+    if (horario.horaInicio >= horario.horaFin) {
+      mostrarToast("La hora de inicio debe ser anterior a la hora de fin", "error");
+      return false;
+    }
+    // Verificar duplicado (misma persona, mismo día)
+    const duplicado = horarios.some(h =>
+      h.documento === horario.documento &&
+      h.dia === horario.dia &&
+      h.id !== horario.id
+    );
+    if (duplicado) {
+      mostrarToast("Esta persona ya tiene un horario asignado para ese día", "error");
+      return false;
+    }
+    return true;
+  };
+
+  // ===== CRUD =====
   const handleCreate = async (nuevoHorario) => {
+    if (!validarHorario(nuevoHorario)) return;
     try {
       const created = await horarioService.create(nuevoHorario);
       const updated = [...horarios, created];
@@ -81,6 +138,7 @@ const AdminHorarios = () => {
   };
 
   const handleUpdate = async (id, data) => {
+    if (!validarHorario(data)) return;
     try {
       const updated = await horarioService.update(id, data);
       const updatedList = horarios.map((h) => (h.id === id ? updated : h));
@@ -115,6 +173,7 @@ const AdminHorarios = () => {
     }
   };
 
+  // ===== MODAL =====
   const abrirModalCrear = () => {
     setModoEdicion(false);
     setHorarioActual({
@@ -163,13 +222,13 @@ const AdminHorarios = () => {
     setHorarioActual({ ...horarioActual, [e.target.name]: e.target.value });
   };
 
-  // Filtro de búsqueda (por nombre o documento)
+  // ===== FILTROS =====
   const horariosFiltrados = horarios.filter((h) =>
     h.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     h.documento?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Obtener lista de personas únicas para el calendario (agrupado por nombre)
+  // ===== PERSONAS ÚNICAS =====
   const personas = horarios.reduce((acc, h) => {
     if (!acc.find(p => p.documento === h.documento)) {
       acc.push({ documento: h.documento, nombre: h.nombre, rol: h.rol });
@@ -177,13 +236,12 @@ const AdminHorarios = () => {
     return acc;
   }, []);
 
-  // Función para obtener el horario de una persona en un día específico
+  // ===== OBTENER HORARIO POR DÍA Y PERSONA =====
   const getHorarioPorDia = (documento, dia) => {
-    const horario = horarios.find(h => h.documento === documento && h.dia === dia);
-    return horario;
+    return horarios.find(h => h.documento === documento && h.dia === dia);
   };
 
-  // Función para obtener color según rol
+  // ===== COLOR SEGÚN ROL =====
   const getColorRol = (rol) => {
     if (rol === "Seguridad") return "primary";
     if (rol === "Bartender") return "secondary";
@@ -191,38 +249,62 @@ const AdminHorarios = () => {
     return "on-surface";
   };
 
-  // Función para obtener las clases de estilo según el turno
-  const getTurnoClases = (horario, rol) => {
-    if (!horario) return "bg-white/5 border border-white/5 flex items-center justify-center text-[10px] text-on-surface-variant";
-    const color = getColorRol(rol);
-    const bg = `bg-${color}/20`;
-    const border = `border-${color}/40`;
-    const text = `text-${color}`;
-    return `w-full h-8 ${bg} border ${border} rounded flex items-center justify-center ${text}`;
-  };
-
-  // Navegación de semana (simulada)
-  const cambiarSemana = (dir) => {
-    setSemanaActual(semanaActual + dir);
-  };
-
-  // Logout
-  const handleLogout = () => {
-    window.location.href = "/home";
-  };
-
-  // Toggle notificaciones
-  const toggleNotificaciones = () => {
-    setNotificacionesAbiertas(!notificacionesAbiertas);
-  };
-
-  // Estadísticas
+  // ===== ESTADÍSTICAS =====
   const totalHorarios = horarios.length;
   const personasUnicas = personas.length;
 
+  // ===== FUNCIONES PARA BOTONES =====
+  const handleExportar = () => {
+    mostrarToast("Exportando horarios... (función en desarrollo)", "info");
+  };
+
+  const handleEditarRotacion = () => {
+    mostrarToast("Editar rotación (función en desarrollo)", "info");
+  };
+
+  const handleNotificarTodo = () => {
+    mostrarToast("Notificaciones enviadas a todo el personal", "success");
+  };
+
+  const handleAnaliticaHoras = () => {
+    mostrarToast("Analítica de horas (función en desarrollo)", "info");
+  };
+
+  const handleContratacion = () => {
+    mostrarToast("Contratación (función en desarrollo)", "info");
+  };
+
+  const handleVerTodos = () => {
+    mostrarToast(`Total de personal: ${personasUnicas}`, "info");
+  };
+
+  // ===== NAVEGACIÓN DE SEMANA =====
+  const cambiarSemana = (dir) => {
+    setSemanaOffset(semanaOffset + dir);
+  };
+
+  // ===== DETERMINAR SI UN HORARIO ES PASADO =====
+  const esHorarioPasado = (horario, diaIndex) => {
+    if (!horario) return false;
+    const fechaSemana = semanaFechas[diaIndex];
+    const ahora = new Date();
+    // Si la fecha de la semana es anterior a hoy, es pasado
+    if (fechaSemana < new Date(ahora.setHours(0,0,0,0))) return true;
+    // Si es hoy, comparar horaFin
+    if (fechaSemana.toDateString() === new Date().toDateString()) {
+      const horaFin = horario.horaFin.split(':').map(Number);
+      const horaFinDate = new Date();
+      horaFinDate.setHours(horaFin[0], horaFin[1], 0, 0);
+      return horaFinDate < new Date();
+    }
+    return false;
+  };
+
   return (
     <>
-      {/* ===== ESTILOS PERSONALIZADOS (idénticos al HTML original) ===== */}
+      <NavbarAdmin />
+
+      {/* ===== ESTILOS (idénticos al HTML original) ===== */}
       <style>{`
         /* Variables de color (extraídas del tema) */
         :root {
@@ -249,14 +331,12 @@ const AdminHorarios = () => {
           --surface-container-lowest: #0e0e0e;
         }
 
-        /* Fondo general */
         body {
           background-color: #050505;
           color: var(--on-surface);
           overflow-x: hidden;
         }
 
-        /* Clases personalizadas */
         .glass-card {
           background: rgba(28, 28, 30, 0.7);
           backdrop-filter: blur(20px);
@@ -289,7 +369,6 @@ const AdminHorarios = () => {
           background: #e9b3ff;
         }
 
-        /* Clases de color */
         .bg-surface { background-color: var(--surface); }
         .bg-surface-container { background-color: var(--surface-container); }
         .bg-surface-container-high { background-color: var(--surface-container-high); }
@@ -337,7 +416,6 @@ const AdminHorarios = () => {
         .shadow-primary\\/20 { box-shadow: 0 4px 14px rgba(233,179,255,0.2); }
         .shadow-primary\\/30 { box-shadow: 0 0 20px rgba(233,179,255,0.3); }
 
-        /* Fuentes */
         .font-headline-lg { font-family: 'Montserrat', sans-serif; }
         .font-headline-md { font-family: 'Montserrat', sans-serif; }
         .font-body-md { font-family: 'Inter', sans-serif; }
@@ -345,7 +423,6 @@ const AdminHorarios = () => {
         .font-stats-number { font-family: 'Montserrat', sans-serif; }
         .font-display-lg { font-family: 'Montserrat', sans-serif; }
 
-        /* Tamaños de fuente */
         .text-headline-lg { font-size: 32px; line-height: 40px; letter-spacing: -0.01em; font-weight: 700; }
         .text-headline-md { font-size: 24px; line-height: 32px; font-weight: 600; }
         .text-body-md { font-size: 16px; line-height: 24px; font-weight: 400; }
@@ -360,7 +437,6 @@ const AdminHorarios = () => {
         .text-[20px] { font-size: 20px; }
         .text-[32px] { font-size: 32px; }
 
-        /* Utilidades */
         .tracking-widest { letter-spacing: 0.1em; }
         .tracking-tight { letter-spacing: -0.02em; }
         .tracking-tighter { letter-spacing: -0.05em; }
@@ -407,10 +483,9 @@ const AdminHorarios = () => {
         .-translate-x-1\\/2 { transform: translateX(-50%); }
         .translate-x-0 { transform: translateX(0); }
 
-        /* Espaciado */
         .px-margin-mobile { padding-left: 16px; padding-right: 16px; }
         .px-margin-desktop { padding-left: 48px; padding-right: 48px; }
-        .pt-24 { padding-top: 6rem; }
+        .pt-20 { padding-top: 5rem; }
         .pb-xl { padding-bottom: 64px; }
         .gap-gutter { gap: 24px; }
         .gap-base { gap: 8px; }
@@ -537,13 +612,12 @@ const AdminHorarios = () => {
         .space-y-2 > * + * { margin-top: 8px; }
         .space-y-3 > * + * { margin-top: 12px; }
 
-        /* Animaciones */
+        .animate-pulse {
+          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
-        }
-        .animate-pulse {
-          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
         .animate-ping {
           animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
@@ -554,11 +628,9 @@ const AdminHorarios = () => {
         }
         .border-l-4 { border-left-width: 4px; }
 
-        /* Responsive */
         @media (min-width: 768px) {
           .md\\:flex { display: flex; }
           .md\\:hidden { display: none; }
-          .md\\:ml-xl { margin-left: 64px; }
           .md\\:block { display: block; }
           .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           .md\\:p-margin-desktop { padding-left: 48px; padding-right: 48px; padding-top: 48px; padding-bottom: 48px; }
@@ -571,125 +643,19 @@ const AdminHorarios = () => {
         }
       `}</style>
 
-      {/* ===== HEADER ===== */}
-      <header className="bg-surface/70 dark:bg-surface-container-low/70 backdrop-blur-xl border-b border-white/10 w-full sticky top-0 z-40 shadow-[0_4px_20px_rgba(0,0,0,0.4)] flex justify-between items-center px-margin-desktop py-base">
-        <div className="flex items-center gap-base">
-          <h1 className="font-display-lg text-headline-md font-extrabold text-primary tracking-tighter">Afterdark Pulse</h1>
-        </div>
-        <div className="flex items-center gap-md">
-          <div className="relative hidden md:block">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-            <input
-              className="bg-surface-container text-on-surface pl-10 pr-4 py-2 rounded-full border-none focus:ring-2 focus:ring-primary w-64 transition-all"
-              placeholder="Buscar personal..."
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center gap-sm relative">
-            <button
-              className="p-2 rounded-full hover:bg-white/5 transition-colors cursor-pointer active:scale-95 duration-200"
-              onClick={toggleNotificaciones}
-            >
-              <span className="material-symbols-outlined text-on-surface-variant">notifications</span>
-            </button>
-            {notificacionesAbiertas && (
-              <div className="absolute top-full right-0 mt-2 w-72 glass-card rounded-xl p-md z-50 border border-white/10 shadow-2xl">
-                <h4 className="font-label-md text-on-surface mb-sm">Notificaciones</h4>
-                <div className="space-y-sm max-h-60 overflow-y-auto custom-scrollbar">
-                  <div className="p-sm bg-white/5 rounded-lg border border-white/5">
-                    <p className="text-xs text-on-surface">🔔 Nuevo turno asignado a Marco R.</p>
-                    <p className="text-[10px] text-on-surface-variant">Hace 5 min</p>
-                  </div>
-                  <div className="p-sm bg-white/5 rounded-lg border border-white/5">
-                    <p className="text-xs text-on-surface">⏰ Cambio de horario para Elena V.</p>
-                    <p className="text-[10px] text-on-surface-variant">Hace 15 min</p>
-                  </div>
-                  <div className="p-sm bg-white/5 rounded-lg border border-white/5">
-                    <p className="text-xs text-on-surface">📋 Solicitud de cobertura de Javier S.</p>
-                    <p className="text-[10px] text-on-surface-variant">Hace 45 min</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setNotificacionesAbiertas(false)}
-                  className="mt-sm w-full text-center text-xs text-primary hover:underline"
-                >
-                  Cerrar
-                </button>
-              </div>
-            )}
-            <button className="p-2 rounded-full hover:bg-white/5 transition-colors cursor-pointer active:scale-95 duration-200">
-              <span className="material-symbols-outlined text-on-surface-variant">settings</span>
-            </button>
-            <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center cursor-pointer overflow-hidden border border-primary/30">
-              <img
-                className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBr4dYi8A0RsgnYNZLSIm0jtmNQLWr7eigYSUG2CXeg2BYe7pJdu3fKK1tWK7ZvUJw0vpsnYZKuObRPWCcSkaJ2COF8Df_uLjamjQsJg3SbyNv231KpQVjCJDH6HloiTP5GWoI35RFKN0m54u8_dmvbT1QXGISWe-ErFxC-5q3CYjwo4uUZJ91b85g1rrsqcaDIidbPZIPUaSQcBM852KX82KG6b_lEcYWsytt4ZnvLUxlQKO3MHS_LWeThVvuX310X4chSvJookzK7"
-                alt="avatar"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* ===== SIDEBAR ===== */}
-      <aside className="hidden md:flex h-screen w-xl fixed left-0 top-0 z-50 bg-surface-container-lowest/80 dark:bg-surface-container-lowest/80 backdrop-blur-2xl border-r border-white/5 flex-col py-lg shadow-xl mt-[72px]">
-        <nav className="flex-1 px-sm space-y-2">
-          <a className="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">dashboard</span>
-            <span className="font-label-md text-label-md group-hover:translate-x-1 duration-300">Dashboard</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm rounded-lg bg-primary/20 text-primary border-r-2 border-primary shadow-[0_0_15px_rgba(233,179,255,0.3)] group" href="#">
-            <span className="material-symbols-outlined">group</span>
-            <span className="font-label-md text-label-md group-hover:translate-x-1 duration-300">Users</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">inventory_2</span>
-            <span className="font-label-md text-label-md group-hover:translate-x-1 duration-300">Inventory</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">payments</span>
-            <span className="font-label-md text-label-md group-hover:translate-x-1 duration-300">Sales</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">event_seat</span>
-            <span className="font-label-md text-label-md group-hover:translate-x-1 duration-300">Reservations</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">music_note</span>
-            <span className="font-label-md text-label-md group-hover:translate-x-1 duration-300">Music</span>
-          </a>
-          <a className="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">calendar_today</span>
-            <span className="font-label-md text-label-md group-hover:translate-x-1 duration-300">Events</span>
-          </a>
-        </nav>
-        <div className="px-sm pt-base border-t border-white/5 mt-auto">
-          <a className="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all group" href="#">
-            <span className="material-symbols-outlined">help</span>
-            <span className="font-label-md text-label-md">Support</span>
-          </a>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-sm px-md py-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all group w-full text-left"
-          >
-            <span className="material-symbols-outlined">logout</span>
-            <span className="font-label-md text-label-md">Logout</span>
-          </button>
-        </div>
-      </aside>
-
       {/* ===== MAIN CONTENT ===== */}
-      <main className="flex-1 md:ml-xl p-margin-mobile md:p-margin-desktop space-y-lg bg-background min-h-screen">
+      <main className="min-h-screen pt-20 pb-xl px-margin-mobile md:px-margin-desktop">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-md">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-md mb-lg">
           <div>
             <h2 className="font-headline-lg text-headline-lg text-primary tracking-tight">Staff Scheduling &amp; Shift Rotation</h2>
             <p className="text-on-surface-variant font-body-md mt-1">Gestión de personal y rotación de turnos en tiempo real.</p>
           </div>
           <div className="flex gap-sm">
-            <button className="bg-surface-container-high text-on-surface px-md py-sm rounded-lg font-label-md border border-white/10 hover:bg-surface-bright transition-all flex items-center gap-2">
+            <button
+              onClick={handleExportar}
+              className="bg-surface-container-high text-on-surface px-md py-sm rounded-lg font-label-md border border-white/10 hover:bg-surface-bright transition-all flex items-center gap-2"
+            >
               <span className="material-symbols-outlined text-[20px]">download</span>
               Exportar
             </button>
@@ -703,6 +669,20 @@ const AdminHorarios = () => {
           </div>
         </div>
 
+        {/* Buscador (visible en móvil) */}
+        <div className="md:hidden mb-lg">
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+            <input
+              className="bg-surface-container text-on-surface pl-10 pr-4 py-2 rounded-full border-none focus:ring-2 focus:ring-primary w-full transition-all"
+              placeholder="Buscar personal..."
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+
         {/* Dashboard Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
           {/* Calendario Semanal */}
@@ -712,7 +692,7 @@ const AdminHorarios = () => {
                 <h3 className="font-headline-md text-headline-md">Calendario Semanal</h3>
                 <div className="flex items-center gap-xs bg-surface-container rounded-lg p-1 border border-white/5">
                   <button onClick={() => cambiarSemana(-1)} className="p-1 rounded hover:bg-white/5"><span className="material-symbols-outlined">chevron_left</span></button>
-                  <span className="px-2 font-label-md">15 - 21 Mayo</span>
+                  <span className="px-2 font-label-md text-sm">{semanaTexto}</span>
                   <button onClick={() => cambiarSemana(1)} className="p-1 rounded hover:bg-white/5"><span className="material-symbols-outlined">chevron_right</span></button>
                 </div>
               </div>
@@ -725,11 +705,15 @@ const AdminHorarios = () => {
             <div className="grid grid-cols-8 gap-1 border border-white/5 rounded-lg overflow-hidden bg-white/5">
               {/* Header Row */}
               <div className="p-2 bg-surface-container-high text-on-surface-variant font-label-md text-center border-b border-r border-white/5">Personal</div>
-              {diasSemana.map((dia) => (
-                <div key={dia} className={`p-2 bg-surface-container-high font-label-md text-center border-b border-r border-white/5 ${dia === "Mie" ? "text-primary" : "text-on-surface-variant"}`}>
-                  {dia}
-                </div>
-              ))}
+              {diasSemana.map((dia, idx) => {
+                const fecha = semanaFechas[idx];
+                const esHoy = fecha.toDateString() === new Date().toDateString();
+                return (
+                  <div key={dia} className={`p-2 bg-surface-container-high font-label-md text-center border-b border-r border-white/5 ${esHoy ? "text-primary" : "text-on-surface-variant"}`}>
+                    {dia}
+                  </div>
+                );
+              })}
 
               {/* Filas de personal */}
               {personas.length === 0 ? (
@@ -747,20 +731,25 @@ const AdminHorarios = () => {
                       </div>
                       <span className="text-xs font-label-md truncate">{persona.nombre}</span>
                     </div>
-                    {diasSemana.map((dia) => {
+                    {diasSemana.map((dia, idx) => {
                       const horario = getHorarioPorDia(persona.documento, dia);
                       const color = getColorRol(persona.rol);
+                      const esPasado = esHorarioPasado(horario, idx);
+                      const clasesBase = horario
+                        ? `w-full h-8 rounded flex items-center justify-center text-[10px] text-${color} bg-${color}/20 border border-${color}/40 cursor-pointer hover:brightness-110 transition-all`
+                        : "w-full h-8 bg-white/5 border border-white/5 rounded flex items-center justify-center text-[10px] text-on-surface-variant";
+                      const clasePasado = esPasado ? "opacity-40" : "";
                       return (
                         <div key={`${persona.documento}-${dia}`} className="p-2 bg-surface-container/50 border-b border-r border-white/5 flex items-center justify-center">
                           {horario ? (
                             <div
-                              className={`w-full h-8 rounded flex items-center justify-center text-[10px] text-${color} bg-${color}/20 border border-${color}/40 cursor-pointer hover:brightness-110 transition-all`}
+                              className={`${clasesBase} ${clasePasado}`}
                               onClick={() => abrirModalEditar(horario)}
                             >
                               {horario.horaInicio} - {horario.horaFin}
                             </div>
                           ) : (
-                            <div className="w-full h-8 bg-white/5 border border-white/5 rounded flex items-center justify-center text-[10px] text-on-surface-variant">—</div>
+                            <div className={clasesBase}>—</div>
                           )}
                         </div>
                       );
@@ -801,7 +790,10 @@ const AdminHorarios = () => {
                   </div>
                 ))}
               </div>
-              <button className="w-full mt-md py-sm rounded-lg border border-primary/30 text-primary font-label-md text-xs hover:bg-primary/10 transition-all">
+              <button
+                onClick={handleVerTodos}
+                className="w-full mt-md py-sm rounded-lg border border-primary/30 text-primary font-label-md text-xs hover:bg-primary/10 transition-all"
+              >
                 Ver todos ({personas.length})
               </button>
             </div>
@@ -833,7 +825,7 @@ const AdminHorarios = () => {
         </div>
 
         {/* Bottom Section: Coverage Requests & Inventory */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-gutter">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-gutter mt-gutter">
           <div className="glass-card rounded-xl p-md border-l-4 border-l-error/50">
             <div className="flex items-center gap-md mb-md">
               <div className="w-12 h-12 rounded-xl bg-error/10 flex items-center justify-center text-error">
@@ -872,19 +864,31 @@ const AdminHorarios = () => {
           <div className="glass-card rounded-xl p-md">
             <h4 className="font-headline-md text-headline-md mb-md">Acciones Rápidas</h4>
             <div className="grid grid-cols-2 gap-sm">
-              <button className="p-md rounded-xl bg-surface-container-high border border-white/5 hover:border-primary/50 flex flex-col items-center gap-2 group transition-all">
+              <button
+                onClick={handleEditarRotacion}
+                className="p-md rounded-xl bg-surface-container-high border border-white/5 hover:border-primary/50 flex flex-col items-center gap-2 group transition-all"
+              >
                 <span className="material-symbols-outlined text-primary group-hover:scale-110 duration-300">edit_calendar</span>
                 <span className="text-xs font-label-md">Editar Rotación</span>
               </button>
-              <button className="p-md rounded-xl bg-surface-container-high border border-white/5 hover:border-secondary/50 flex flex-col items-center gap-2 group transition-all">
+              <button
+                onClick={handleNotificarTodo}
+                className="p-md rounded-xl bg-surface-container-high border border-white/5 hover:border-secondary/50 flex flex-col items-center gap-2 group transition-all"
+              >
                 <span className="material-symbols-outlined text-secondary group-hover:scale-110 duration-300">mail</span>
                 <span className="text-xs font-label-md">Notificar Todo</span>
               </button>
-              <button className="p-md rounded-xl bg-surface-container-high border border-white/5 hover:border-tertiary/50 flex flex-col items-center gap-2 group transition-all">
+              <button
+                onClick={handleAnaliticaHoras}
+                className="p-md rounded-xl bg-surface-container-high border border-white/5 hover:border-tertiary/50 flex flex-col items-center gap-2 group transition-all"
+              >
                 <span className="material-symbols-outlined text-tertiary group-hover:scale-110 duration-300">analytics</span>
                 <span className="text-xs font-label-md">Analítica Horas</span>
               </button>
-              <button className="p-md rounded-xl bg-surface-container-high border border-white/5 hover:border-white/40 flex flex-col items-center gap-2 group transition-all">
+              <button
+                onClick={handleContratacion}
+                className="p-md rounded-xl bg-surface-container-high border border-white/5 hover:border-white/40 flex flex-col items-center gap-2 group transition-all"
+              >
                 <span className="material-symbols-outlined text-on-surface-variant group-hover:scale-110 duration-300">person_add</span>
                 <span className="text-xs font-label-md">Contratación</span>
               </button>
@@ -893,37 +897,9 @@ const AdminHorarios = () => {
         </div>
       </main>
 
-      {/* ===== MOBILE NAV ===== */}
-      <footer className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container-lowest/90 backdrop-blur-xl border-t border-white/5 z-50 flex justify-around py-sm px-margin-mobile">
-        <a className="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
-          <span className="material-symbols-outlined">dashboard</span>
-          <span className="text-[10px] font-label-md">Inicio</span>
-        </a>
-        <a className="flex flex-col items-center gap-1 text-primary" href="#">
-          <span className="material-symbols-outlined">group</span>
-          <span className="text-[10px] font-label-md">Staff</span>
-        </a>
-        <div className="relative -top-6">
-          <button
-            onClick={abrirModalCrear}
-            className="w-14 h-14 bg-primary rounded-full shadow-[0_0_20px_rgba(233,179,255,0.6)] flex items-center justify-center text-on-primary"
-          >
-            <span className="material-symbols-outlined text-[32px]">add</span>
-          </button>
-        </div>
-        <a className="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
-          <span className="material-symbols-outlined">calendar_today</span>
-          <span className="text-[10px] font-label-md">Turnos</span>
-        </a>
-        <a className="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
-          <span className="material-symbols-outlined">account_circle</span>
-          <span className="text-[10px] font-label-md">Perfil</span>
-        </a>
-      </footer>
-
       {/* ===== TOAST ===== */}
       <div
-        className={`fixed bottom-margin-desktop right-margin-desktop glass-card rounded-xl px-md py-sm flex items-center gap-sm transition-all duration-300 z-[100] neon-border-primary ${
+        className={`fixed bottom-24 right-6 md:bottom-10 md:right-10 glass-card rounded-xl px-md py-sm flex items-center gap-sm transition-all duration-300 z-[100] neon-border-primary ${
           toast.visible ? "translate-y-0 opacity-100" : "translate-y-24 opacity-0"
         }`}
       >

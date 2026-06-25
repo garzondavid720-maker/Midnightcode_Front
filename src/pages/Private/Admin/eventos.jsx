@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import NavbarAdmin from "../../../components/Layout/NavbarHeader";
 
 // Servicio local con localStorage
 const eventoService = {
@@ -73,8 +74,34 @@ const AdminEventos = () => {
     setTimeout(() => setToast({ visible: false, mensaje: "", tipo: "" }), 3000);
   };
 
+  // ===== VALIDACIONES =====
+  const validarEvento = (evento) => {
+    if (!evento.nombre.trim()) {
+      mostrarToast("El nombre del evento es obligatorio", "error");
+      return false;
+    }
+    if (!evento.fecha) {
+      mostrarToast("La fecha del evento es obligatoria", "error");
+      return false;
+    }
+    // Validar que la fecha no sea pasada (solo si es nuevo o si se cambió)
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fechaEvento = new Date(evento.fecha);
+    if (fechaEvento < hoy) {
+      mostrarToast("La fecha del evento no puede ser anterior a hoy", "error");
+      return false;
+    }
+    if (!evento.tipo) {
+      mostrarToast("El tipo de evento es obligatorio", "error");
+      return false;
+    }
+    return true;
+  };
+
   // ===== CRUD =====
   const handleCreate = async (nuevoEvento) => {
+    if (!validarEvento(nuevoEvento)) return;
     try {
       const created = await eventoService.create(nuevoEvento);
       const updated = [...eventos, created];
@@ -87,6 +114,7 @@ const AdminEventos = () => {
   };
 
   const handleUpdate = async (id, data) => {
+    if (!validarEvento(data)) return;
     try {
       const updated = await eventoService.update(id, data);
       const updatedList = eventos.map((e) => (e.id === id ? updated : e));
@@ -113,7 +141,15 @@ const AdminEventos = () => {
   // ===== MODAL =====
   const abrirModalCrear = () => {
     setModoEdicion(false);
-    setEventoActual({ id: null, nombre: "", fecha: "", descripcion: "", estado: "Available", tipo: "Concierto", imagen: "" });
+    setEventoActual({
+      id: null,
+      nombre: "",
+      fecha: "",
+      descripcion: "",
+      estado: "Available",
+      tipo: "Concierto",
+      imagen: "",
+    });
     setModalAbierto(true);
   };
 
@@ -125,7 +161,15 @@ const AdminEventos = () => {
 
   const cerrarModal = () => {
     setModalAbierto(false);
-    setEventoActual({ id: null, nombre: "", fecha: "", descripcion: "", estado: "Available", tipo: "Concierto", imagen: "" });
+    setEventoActual({
+      id: null,
+      nombre: "",
+      fecha: "",
+      descripcion: "",
+      estado: "Available",
+      tipo: "Concierto",
+      imagen: "",
+    });
   };
 
   const handleSubmit = (e) => {
@@ -160,7 +204,10 @@ const AdminEventos = () => {
   // ===== RENDER =====
   return (
     <>
-      {/* ===== ESTILOS PERSONALIZADOS (IDÉNTICOS AL HTML) ===== */}
+      {/* ===== NAVBAR ADMIN ===== */}
+      <NavbarAdmin />
+
+      {/* ===== ESTILOS PERSONALIZADOS ===== */}
       <style>{`
         .glass-panel {
           background: rgba(28, 28, 30, 0.7);
@@ -191,7 +238,6 @@ const AdminEventos = () => {
           }
         }
 
-        /* Clases de color y utilidades */
         .bg-surface { background-color: #131313; }
         .bg-surface-container { background-color: #201f1f; }
         .bg-surface-container-high { background-color: #2a2a2a; }
@@ -237,7 +283,6 @@ const AdminEventos = () => {
         .shadow-\\[0_0_30px_rgba\\(233\\,179\\,255\\,0\\.6\\)\\] { box-shadow: 0 0 30px rgba(233,179,255,0.6); }
         .shadow-\\[0_0_8px_rgba\\(231\\,196\\,72\\,0\\.6\\)\\] { box-shadow: 0 0 8px rgba(231,196,72,0.6); }
 
-        /* Fuentes */
         .font-headline-lg { font-family: 'Montserrat', sans-serif; }
         .font-headline-md { font-family: 'Montserrat', sans-serif; }
         .font-body-md { font-family: 'Inter', sans-serif; }
@@ -252,10 +297,9 @@ const AdminEventos = () => {
         .text-stats-number { font-size: 36px; line-height: 44px; font-weight: 700; }
         .text-display-lg { font-size: 48px; line-height: 56px; letter-spacing: -0.02em; font-weight: 800; }
 
-        /* Espaciado */
         .px-margin-mobile { padding-left: 16px; padding-right: 16px; }
         .px-margin-desktop { padding-left: 48px; padding-right: 48px; }
-        .pt-\\[80px\\] { padding-top: 80px; }
+        .pt-20 { padding-top: 5rem; }
         .pb-xl { padding-bottom: 64px; }
         .gap-gutter { gap: 24px; }
         .gap-base { gap: 8px; }
@@ -493,7 +537,6 @@ const AdminEventos = () => {
         @media (min-width: 768px) {
           .md\\:flex { display: flex; }
           .md\\:hidden { display: none; }
-          .md\\:ml-64 { margin-left: 16rem; }
           .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           .md\\:col-span-2 { grid-column: span 2 / span 2; }
           .md\\:flex-row { flex-direction: row; }
@@ -502,7 +545,6 @@ const AdminEventos = () => {
           .md\\:bottom-10 { bottom: 40px; }
           .md\\:right-10 { right: 40px; }
           .md\\:block { display: block; }
-          .md\\:w-\\[calc\\(100\\%-16rem\\)\\] { width: calc(100% - 16rem); }
         }
         @media (min-width: 1024px) {
           .lg\\:grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
@@ -513,276 +555,227 @@ const AdminEventos = () => {
         }
       `}</style>
 
-      {/* ===== SIDEBAR ===== */}
-      <aside className="h-screen w-64 fixed left-0 top-0 border-r border-white/10 bg-surface/70 backdrop-blur-xl shadow-[0_0_15px_rgba(233,179,255,0.1)] flex flex-col h-full py-lg px-md z-[100] hidden md:flex">
-        <div className="mb-xl">
-          <h1 className="font-display-lg text-display-lg text-primary tracking-tighter leading-none mb-xs">LUXE</h1>
-          <p className="text-on-surface-variant font-body-md text-sm opacity-60">Nightlife Management</p>
-        </div>
-        <nav className="flex-1 space-y-base">
-          <a className="flex items-center gap-base p-sm rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 hover:text-primary transition-all duration-300" href="#">
-            <span className="material-symbols-outlined">dashboard</span>
-            <span className="font-body-md">Dashboard</span>
-          </a>
-          <a className="flex items-center gap-base p-sm rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 hover:text-primary transition-all duration-300" href="#">
-            <span className="material-symbols-outlined">monitoring</span>
-            <span className="font-body-md">Analytics</span>
-          </a>
-          <a className="flex items-center gap-base p-sm rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 hover:text-primary transition-all duration-300" href="#">
-            <span className="material-symbols-outlined">table_restaurant</span>
-            <span className="font-body-md">VIP Floor</span>
-          </a>
-          <a className="flex items-center gap-base p-sm rounded-lg text-primary font-bold border-r-2 border-primary bg-primary/10 transition-all duration-300 scale-105" href="#">
-            <span className="material-symbols-outlined">event</span>
-            <span className="font-body-md">Calendar</span>
-          </a>
-        </nav>
-        <div className="mt-auto glass-panel p-base rounded-xl flex items-center gap-sm">
-          <img
-            className="w-10 h-10 rounded-full object-cover"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrji_k8aldz-YXVTTT1KSpDVHwrzZkltibrwRPPtOd-icbggYCEQLhk3YQd8fW2o1VvTgGz-eYFGqKHV9M3GgDfEHacwe3n6QXLXEnxeSb-VFBiwiqpDA9Nkf725l3WRxFQB8GaeysDPtXjKYGn-U-LqOm_iixiSLJV3a2qCZ0KVNkXLL7ZVxrVLd8BXQSK2TzVyuXVruTET6kQQ1_LJXK3NRUngVMYp4ZSg3k9AGiBvCTL1Cjr4vDg4JS6Nrg-Db6Cc6uMXVogU0s"
-            alt="avatar"
-          />
-          <div>
-            <p className="text-on-surface font-body-md font-bold text-sm">Alex Thorne</p>
-            <p className="text-on-surface-variant text-[10px] uppercase tracking-widest">VIP Director</p>
+      {/* ===== MAIN CONTENT ===== */}
+      <main className="pt-20 pb-xl px-margin-mobile md:px-margin-desktop background: rgba(28, 28, 30, 0.7) min-h-screen">
+        {/* Header & View Switcher */}
+        <section className="flex flex-col md:flex-row md:items-end background: rgba(28, 28, 30, 0.7) justify-between gap-md mt-md">
+          <div className="space-y-xs">
+            <h2 className="font-headline-lg text-headline-lg text-on-surface">Artistas y Talentos</h2>
+            <p className="font-body-md text-on-surface-variant max-w-xl">
+              Optimiza tus ingresos semanales sincronizando DJs invitados de alto impacto con las proyecciones de afluencia máxima.
+            </p>
           </div>
-        </div>
-      </aside>
+          <div className="flex items-center gap-base">
+            <div className="glass-panel flex p-[4px] rounded-lg">
+              <button className="px-md py-xs rounded-md bg-primary text-on-primary-container text-label-md font-label-md">Mensual</button>
+              <button className="px-md py-xs rounded-md text-on-surface-variant text-label-md font-label-md hover:text-primary transition-colors">Semanal</button>
+            </div>
+            <button
+              onClick={abrirModalCrear}
+              className="bg-primary hover:bg-primary-container text-on-primary font-bold py-xs px-md rounded-lg flex items-center gap-xs transition-all active:scale-95 shadow-lg shadow-primary/20"
+            >
+              <span className="material-symbols-outlined text-[20px]">add</span>
+              <span className="text-label-md">Nuevo Evento</span>
+            </button>
+          </div>
+        </section>
 
-      {/* ===== HEADER ===== */}
-      <header className="fixed top-0 right-0 w-full md:w-[calc(100%-16rem)] z-50 bg-surface/70 backdrop-blur-xl border-b border-white/10 shadow-md flex justify-between items-center px-margin-mobile md:px-margin-desktop py-base">
-        <div className="flex items-center gap-md">
-          <span className="md:hidden material-symbols-outlined text-primary">menu</span>
-          <div className="hidden md:flex items-center gap-sm glass-panel px-md py-xs rounded-full border-white/5 focus-within:ring-2 focus-within:ring-primary/50">
-            <span className="material-symbols-outlined text-on-surface-variant text-sm">search</span>
+        {/* Búsqueda (solo en móvil) */}
+        <div className="md:hidden mt-4">
+          <div className="relative glass-panel px-md py-xs rounded-full border-white/5 focus-within:ring-2 focus-within:ring-primary/50">
+            <span className="material-symbols-outlined text-on-surface-variant text-sm absolute left-3 top-1/2 -translate-y-1/2">search</span>
             <input
-              className="bg-transparent border-none focus:ring-0 text-sm text-on-surface placeholder:text-on-surface-variant/50 w-48"
-              placeholder="Search events, artists..."
+              className="bg-transparent border-none focus:ring-0 text-sm text-on-surface placeholder:text-on-surface-variant/50 w-full pl-10"
+              placeholder="Buscar eventos, artistas..."
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
-        <div className="flex items-center gap-md">
-          <div className="hidden lg:flex items-center gap-sm">
-            <span className="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
-            <span className="text-label-md font-label-md text-primary uppercase tracking-tighter">Live Status: Peak Hour</span>
+
+        {/* Main Bento Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter mt-6">
+          {/* Calendar View (8 Cols) */}
+          <div className="lg:col-span-8 glass-panel rounded-xl overflow-hidden flex flex-col">
+            <div className="p-md border-b border-white/10 flex justify-between items-center">
+              <div className="flex items-center gap-md">
+                <h3 className="font-headline-md text-headline-md text-primary">Octubre 2024</h3>
+                <div className="flex gap-xs">
+                  <button className="p-xs hover:bg-white/5 rounded-full text-on-surface-variant"><span className="material-symbols-outlined">chevron_left</span></button>
+                  <button className="p-xs hover:bg-white/5 rounded-full text-on-surface-variant"><span className="material-symbols-outlined">chevron_right</span></button>
+                </div>
+              </div>
+              <div className="flex gap-base">
+                <span className="flex items-center gap-xs text-[10px] uppercase font-bold text-primary"><span className="w-2 h-2 bg-primary rounded-full"></span> Noche VIP</span>
+                <span className="flex items-center gap-xs text-[10px] uppercase font-bold text-secondary"><span className="w-2 h-2 bg-secondary rounded-full"></span> AGOTADO</span>
+              </div>
+            </div>
+            <div className="flex-1 overflow-x-auto">
+              <div className="min-w-[700px]">
+                <div className="calendar-grid bg-white/5">
+                  <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">LUN</div>
+                  <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">MAR</div>
+                  <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">MIÉ</div>
+                  <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">JUE</div>
+                  <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">VIE</div>
+                  <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">SÁB</div>
+                  <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold">DOM</div>
+                </div>
+                <div className="calendar-grid border-t border-white/5">
+                  {/* Generar celdas del calendario (estático) */}
+                  {[
+                    { day: 28, empty: true }, { day: 29, empty: true }, { day: 30, empty: true },
+                    { day: 1, event: null },
+                    { day: 2, event: "Techno Thursday", color: "primary" },
+                    { day: 3, event: "Neon Pulse", color: "secondary" },
+                    { day: 4, event: null },
+                    { day: 5, empty: false }, { day: 6, empty: false }, { day: 7, empty: false },
+                    { day: 8, empty: false },
+                    { day: 9, event: "DJ KINETIC", color: "primary" },
+                    { day: 10, empty: false }, { day: 11, empty: false },
+                    { day: 12, empty: false }, { day: 13, empty: false }, { day: 14, empty: false },
+                    { day: 15, empty: false }, { day: 16, empty: false }, { day: 17, empty: false },
+                    { day: 18, empty: false }
+                  ].map((cell, idx) => (
+                    <div
+                      key={idx}
+                      className={`h-32 p-xs border-r border-b border-white/5 text-xs font-label-md ${cell.empty ? 'opacity-30' : ''} ${cell.event ? 'bg-primary/5' : ''}`}
+                    >
+                      <span>{cell.day}</span>
+                      {cell.event && (
+                        <div className={`mt-xs p-xs ${cell.color === 'primary' ? 'bg-primary/20 border-l-2 border-primary text-primary' : 'bg-secondary border-l-2 border-on-secondary text-on-secondary'} rounded text-[10px] font-bold`}>
+                          {cell.event}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-sm">
-            <span className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer">notifications</span>
-            <span className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer">settings</span>
-            <span className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer" onClick={() => window.location.href = "/home"}>logout</span>
-          </div>
-        </div>
-      </header>
 
-      {/* ===== MAIN CONTENT ===== */}
-      <main className="pt-[80px] pb-xl md:pl-64 min-h-screen">
-        <div className="px-margin-mobile md:px-margin-desktop space-y-md">
-          {/* Header & View Switcher */}
-          <section className="flex flex-col md:flex-row md:items-end justify-between gap-md mt-md">
-            <div className="space-y-xs">
-              <h2 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Artist &amp; Talent Ledger</h2>
-              <p className="font-body-md text-on-surface-variant max-w-xl">Optimize your weekly floor revenue by syncing high-impact guest DJs with peak traffic projections.</p>
-            </div>
-            <div className="flex items-center gap-base">
-              <div className="glass-panel flex p-[4px] rounded-lg">
-                <button className="px-md py-xs rounded-md bg-primary text-on-primary-container text-label-md font-label-md">Monthly</button>
-                <button className="px-md py-xs rounded-md text-on-surface-variant text-label-md font-label-md hover:text-primary transition-colors">Weekly</button>
+          {/* Right Sidebar Status Tracking (4 Cols) */}
+          <div className="lg:col-span-4 space-y-gutter">
+            {/* Performance Gauge */}
+            <div className="glass-panel rounded-xl p-md flex flex-col items-center text-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-sm">
+                <span className="material-symbols-outlined text-primary/40">trending_up</span>
               </div>
-              <button
-                onClick={abrirModalCrear}
-                className="bg-primary hover:bg-primary-container text-on-primary font-bold py-xs px-md rounded-lg flex items-center gap-xs transition-all active:scale-95 shadow-lg shadow-primary/20"
-              >
-                <span className="material-symbols-outlined text-[20px]">add</span>
-                <span className="text-label-md">Book Talent</span>
-              </button>
-            </div>
-          </section>
-
-          {/* Main Bento Grid Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
-            {/* Calendar View (8 Cols) */}
-            <div className="lg:col-span-8 glass-panel rounded-xl overflow-hidden flex flex-col">
-              <div className="p-md border-b border-white/10 flex justify-between items-center">
-                <div className="flex items-center gap-md">
-                  <h3 className="font-headline-md text-headline-md text-primary">October 2024</h3>
-                  <div className="flex gap-xs">
-                    <button className="p-xs hover:bg-white/5 rounded-full text-on-surface-variant"><span className="material-symbols-outlined">chevron_left</span></button>
-                    <button className="p-xs hover:bg-white/5 rounded-full text-on-surface-variant"><span className="material-symbols-outlined">chevron_right</span></button>
-                  </div>
-                </div>
-                <div className="flex gap-base">
-                  <span className="flex items-center gap-xs text-[10px] uppercase font-bold text-primary"><span className="w-2 h-2 bg-primary rounded-full"></span> VIP Night</span>
-                  <span className="flex items-center gap-xs text-[10px] uppercase font-bold text-secondary"><span className="w-2 h-2 bg-secondary rounded-full"></span> SOLD OUT</span>
+              <h4 className="text-label-md font-label-md text-on-surface-variant uppercase tracking-widest mb-md">Eficiencia de Reservas Mensual</h4>
+              <div className="relative w-40 h-40 flex items-center justify-center">
+                <svg className="w-full h-full -rotate-90">
+                  <circle cx="80" cy="80" fill="none" r="70" stroke="rgba(255,255,255,0.05)" strokeWidth="12"></circle>
+                  <circle className="drop-shadow-[0_0_8px_rgba(233,179,255,0.5)]" cx="80" cy="80" fill="none" r="70" stroke="#e9b3ff" strokeDasharray="440" strokeDashoffset="110" strokeWidth="12"></circle>
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="font-stats-number text-stats-number text-on-surface">{totalEventos > 0 ? Math.round((eventosConfirmados / totalEventos) * 100) : 0}%</span>
+                  <span className="text-[10px] text-on-surface-variant">Capacidad Alcanzada</span>
                 </div>
               </div>
-              <div className="flex-1 overflow-x-auto">
-                <div className="min-w-[700px]">
-                  <div className="calendar-grid bg-white/5">
-                    <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">MON</div>
-                    <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">TUE</div>
-                    <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">WED</div>
-                    <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">THU</div>
-                    <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">FRI</div>
-                    <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold border-r border-white/5">SAT</div>
-                    <div className="p-sm text-center text-label-md text-on-surface-variant/60 font-bold">SUN</div>
-                  </div>
-                  <div className="calendar-grid border-t border-white/5">
-                    {/* Generar celdas del calendario (estático) */}
-                    {[
-                      { day: 28, empty: true }, { day: 29, empty: true }, { day: 30, empty: true },
-                      { day: 1, event: null },
-                      { day: 2, event: "Techno Thursday", color: "primary" },
-                      { day: 3, event: "Neon Pulse", color: "secondary" },
-                      { day: 4, event: null },
-                      { day: 5, empty: false }, { day: 6, empty: false }, { day: 7, empty: false },
-                      { day: 8, empty: false },
-                      { day: 9, event: "DJ KINETIC", color: "primary" },
-                      { day: 10, empty: false }, { day: 11, empty: false },
-                      { day: 12, empty: false }, { day: 13, empty: false }, { day: 14, empty: false },
-                      { day: 15, empty: false }, { day: 16, empty: false }, { day: 17, empty: false },
-                      { day: 18, empty: false }
-                    ].map((cell, idx) => (
-                      <div
-                        key={idx}
-                        className={`h-32 p-xs border-r border-b border-white/5 text-xs font-label-md ${cell.empty ? 'opacity-30' : ''} ${cell.event ? 'bg-primary/5' : ''}`}
-                      >
-                        <span>{cell.day}</span>
-                        {cell.event && (
-                          <div className={`mt-xs p-xs ${cell.color === 'primary' ? 'bg-primary/20 border-l-2 border-primary text-primary' : 'bg-secondary border-l-2 border-on-secondary text-on-secondary'} rounded text-[10px] font-bold`}>
-                            {cell.event}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <p className="mt-md text-body-md text-sm text-on-surface-variant">{eventosConfirmados} de {totalEventos} eventos contratados exitosamente.</p>
             </div>
 
-            {/* Right Sidebar Status Tracking (4 Cols) */}
-            <div className="lg:col-span-4 space-y-gutter">
-              {/* Performance Gauge */}
-              <div className="glass-panel rounded-xl p-md flex flex-col items-center text-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-sm">
-                  <span className="material-symbols-outlined text-primary/40">trending_up</span>
-                </div>
-                <h4 className="text-label-md font-label-md text-on-surface-variant uppercase tracking-widest mb-md">Monthly Booking Efficiency</h4>
-                <div className="relative w-40 h-40 flex items-center justify-center">
-                  <svg className="w-full h-full -rotate-90">
-                    <circle cx="80" cy="80" fill="none" r="70" stroke="rgba(255,255,255,0.05)" strokeWidth="12"></circle>
-                    <circle className="drop-shadow-[0_0_8px_rgba(233,179,255,0.5)]" cx="80" cy="80" fill="none" r="70" stroke="#e9b3ff" strokeDasharray="440" strokeDashoffset="110" strokeWidth="12"></circle>
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="font-stats-number text-stats-number text-on-surface">{totalEventos > 0 ? Math.round((eventosConfirmados / totalEventos) * 100) : 0}%</span>
-                    <span className="text-[10px] text-on-surface-variant">Capacity Reached</span>
-                  </div>
-                </div>
-                <p className="mt-md text-body-md text-sm text-on-surface-variant">{eventosConfirmados} of {totalEventos} slots successfully contracted.</p>
+            {/* Upcoming Talent List */}
+            <div className="glass-panel rounded-xl flex flex-col max-h-[500px]">
+              <div className="p-md border-b border-white/10">
+                <h4 className="font-headline-md text-lg text-on-surface">Próximos Eventos</h4>
               </div>
-
-              {/* Upcoming Talent List */}
-              <div className="glass-panel rounded-xl flex flex-col max-h-[500px]">
-                <div className="p-md border-b border-white/10">
-                  <h4 className="font-headline-md text-lg text-on-surface">Upcoming Lineup</h4>
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-sm space-y-sm">
-                  {loading ? (
-                    <p className="text-on-surface-variant text-sm">Cargando...</p>
-                  ) : eventosProximos.length === 0 ? (
-                    <p className="text-on-surface-variant text-sm">No hay eventos próximos</p>
-                  ) : (
-                    eventosProximos.map((evento) => (
-                      <div key={evento.id} className="flex gap-sm p-sm rounded-lg hover:bg-white/5 transition-colors group">
-                        <img
-                          className="w-16 h-16 rounded-lg object-cover ring-1 ring-white/10 group-hover:ring-primary/50 transition-all"
-                          src={evento.imagen || "https://lh3.googleusercontent.com/aida-public/AB6AXuBvGHfTa1Rqw5FSBs4AwsdnPXS9q7X3CrFdu6N-lefRi8BUvTM23MMMm8c-kGJx8p-ws0NWAizx_r6dtgmp6rm_F-6B3PYGPmU0GnNPHO-ME4PR1Kroct76CEMTctD93RpbFWqcqAKUHU8k4A8ufBoiP62QjgpekNMALnbGZZte2PX4JUDCkRNHIiGc8zbbKP61IGVa0MwH-ixQKfawLPDUzPB7NJGmcAtiIUPih7UMZlEkIvsZEO2MGCb0RR9FCSRfapxaDFaVQiF6"}
-                          alt={evento.nombre}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start">
-                            <h5 className="text-on-surface font-bold text-sm truncate">{evento.nombre}</h5>
-                            <span className={`${
-                              evento.estado === "Sold Out" ? "bg-secondary text-on-secondary" :
-                              evento.estado === "Confirmed" ? "bg-primary/20 text-primary border border-primary/30" :
-                              "bg-white/10 text-on-surface-variant"
-                            } text-[10px] font-bold px-xs py-[2px] rounded uppercase`}>
-                              {evento.estado}
-                            </span>
-                          </div>
-                          <p className="text-on-surface-variant text-xs mb-xs">{evento.tipo} • {evento.fecha || "Fecha no definida"}</p>
-                          <div className="flex items-center gap-xs">
-                            <span className={`material-symbols-outlined text-[14px] ${
-                              evento.estado === "Confirmed" || evento.estado === "Sold Out" ? "text-primary" :
-                              evento.estado === "Negotiating" ? "text-tertiary" : "text-on-surface-variant/40"
-                            }`}>
-                              {evento.estado === "Confirmed" || evento.estado === "Sold Out" ? "check_circle" :
-                               evento.estado === "Negotiating" ? "hourglass_bottom" : "contact_mail"}
-                            </span>
-                            <span className={`text-[10px] font-bold uppercase tracking-tighter ${
-                              evento.estado === "Confirmed" || evento.estado === "Sold Out" ? "text-primary" :
-                              evento.estado === "Negotiating" ? "text-tertiary" : "text-on-surface-variant"
-                            }`}>
-                              {evento.estado === "Confirmed" ? "Contract Signed" :
-                               evento.estado === "Sold Out" ? "Sold Out" :
-                               evento.estado === "Negotiating" ? "Rider Pending" : "Negotiating"}
-                            </span>
-                          </div>
-                          <div className="mt-1 flex gap-1">
-                            <button
-                              onClick={() => abrirModalEditar(evento)}
-                              className="text-primary hover:underline text-[10px]"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => handleDelete(evento.id)}
-                              className="text-error hover:underline text-[10px]"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-sm space-y-sm">
+                {loading ? (
+                  <p className="text-on-surface-variant text-sm">Cargando...</p>
+                ) : eventosProximos.length === 0 ? (
+                  <p className="text-on-surface-variant text-sm">No hay eventos próximos</p>
+                ) : (
+                  eventosProximos.map((evento) => (
+                    <div key={evento.id} className="flex gap-sm p-sm rounded-lg hover:bg-white/5 transition-colors group">
+                      <img
+                        className="w-16 h-16 rounded-lg object-cover ring-1 ring-white/10 group-hover:ring-primary/50 transition-all"
+                        src={evento.imagen || "https://lh3.googleusercontent.com/aida-public/AB6AXuBvGHfTa1Rqw5FSBs4AwsdnPXS9q7X3CrFdu6N-lefRi8BUvTM23MMMm8c-kGJx8p-ws0NWAizx_r6dtgmp6rm_F-6B3PYGPmU0GnNPHO-ME4PR1Kroct76CEMTctD93RpbFWqcqAKUHU8k4A8ufBoiP62QjgpekNMALnbGZZte2PX4JUDCkRNHIiGc8zbbKP61IGVa0MwH-ixQKfawLPDUzPB7NJGmcAtiIUPih7UMZlEkIvsZEO2MGCb0RR9FCSRfapxaDFaVQiF6"}
+                        alt={evento.nombre}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <h5 className="text-on-surface font-bold text-sm truncate">{evento.nombre}</h5>
+                          <span className={`${
+                            evento.estado === "Sold Out" ? "bg-secondary text-on-secondary" :
+                            evento.estado === "Confirmed" ? "bg-primary/20 text-primary border border-primary/30" :
+                            "bg-white/10 text-on-surface-variant"
+                          } text-[10px] font-bold px-xs py-[2px] rounded uppercase`}>
+                            {evento.estado === "Sold Out" ? "Agotado" :
+                             evento.estado === "Confirmed" ? "Confirmado" :
+                             evento.estado === "Negotiating" ? "Negociando" : "Disponible"}
+                          </span>
+                        </div>
+                        <p className="text-on-surface-variant text-xs mb-xs">{evento.tipo} • {evento.fecha ? new Date(evento.fecha).toLocaleDateString('es-ES') : "Fecha no definida"}</p>
+                        <div className="flex items-center gap-xs">
+                          <span className={`material-symbols-outlined text-[14px] ${
+                            evento.estado === "Confirmed" || evento.estado === "Sold Out" ? "text-primary" :
+                            evento.estado === "Negotiating" ? "text-tertiary" : "text-on-surface-variant/40"
+                          }`}>
+                            {evento.estado === "Confirmed" || evento.estado === "Sold Out" ? "check_circle" :
+                             evento.estado === "Negotiating" ? "hourglass_bottom" : "contact_mail"}
+                          </span>
+                          <span className={`text-[10px] font-bold uppercase tracking-tighter ${
+                            evento.estado === "Confirmed" || evento.estado === "Sold Out" ? "text-primary" :
+                            evento.estado === "Negotiating" ? "text-tertiary" : "text-on-surface-variant"
+                          }`}>
+                            {evento.estado === "Confirmed" ? "Contrato Firmado" :
+                             evento.estado === "Sold Out" ? "Agotado" :
+                             evento.estado === "Negotiating" ? "Rider Pendiente" : "Negociando"}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex gap-1">
+                          <button
+                            onClick={() => abrirModalEditar(evento)}
+                            className="text-primary hover:underline text-[10px]"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(evento.id)}
+                            className="text-error hover:underline text-[10px]"
+                          >
+                            Eliminar
+                          </button>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
-
-          {/* Booking Status Tracker (Bottom Row) */}
-          <section className="glass-panel rounded-xl p-md">
-            <div className="flex items-center justify-between mb-md">
-              <h4 className="font-headline-md text-lg text-on-surface">Themed Nights Pipeline</h4>
-              <button className="text-primary text-label-md font-label-md flex items-center gap-xs">
-                View Full Roadmap <span className="material-symbols-outlined text-sm">arrow_forward</span>
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-md">
-              {eventos.slice(0, 4).map((evento, idx) => {
-                const progress = idx === 0 ? 75 : idx === 1 ? 25 : idx === 2 ? 100 : 50;
-                const color = idx === 0 ? "primary" : idx === 1 ? "secondary" : idx === 2 ? "tertiary" : "primary";
-                const status = idx === 0 ? `Phase 3/4` : idx === 1 ? `Initial Draft` : idx === 2 ? `Completed` : `Phase 2/4`;
-                return (
-                  <div key={evento.id} className="space-y-xs">
-                    <div className="flex justify-between text-[10px] font-bold uppercase text-on-surface-variant tracking-widest mb-xs">
-                      <span>{evento.nombre}</span>
-                      <span className={`text-${color}`}>{status}</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                      <div className={`h-full bg-${color} rounded-full`} style={{ width: `${progress}%` }}></div>
-                    </div>
-                    <p className="text-[10px] text-on-surface-variant/60">{evento.descripcion || "En progreso..."}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
         </div>
+
+        {/* Booking Status Tracker (Bottom Row) */}
+        <section className="glass-panel rounded-xl p-md mt-6">
+          <div className="flex items-center justify-between mb-md">
+            <h4 className="font-headline-md text-lg text-on-surface">Pipeline de Noches Temáticas</h4>
+            <button className="text-primary text-label-md font-label-md flex items-center gap-xs">
+              Ver Hoja de Ruta <span className="material-symbols-outlined text-sm">arrow_forward</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-md">
+            {eventos.slice(0, 4).map((evento, idx) => {
+              const progress = idx === 0 ? 75 : idx === 1 ? 25 : idx === 2 ? 100 : 50;
+              const color = idx === 0 ? "primary" : idx === 1 ? "secondary" : idx === 2 ? "tertiary" : "primary";
+              const status = idx === 0 ? `Fase 3/4` : idx === 1 ? `Borrador Inicial` : idx === 2 ? `Completado` : `Fase 2/4`;
+              return (
+                <div key={evento.id} className="space-y-xs">
+                  <div className="flex justify-between text-[10px] font-bold uppercase text-on-surface-variant tracking-widest mb-xs">
+                    <span>{evento.nombre}</span>
+                    <span className={`text-${color}`}>{status}</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className={`h-full bg-${color} rounded-full`} style={{ width: `${progress}%` }}></div>
+                  </div>
+                  <p className="text-[10px] text-on-surface-variant/60">{evento.descripcion || "En progreso..."}</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </main>
 
       {/* ===== FAB ===== */}
@@ -836,6 +829,7 @@ const AdminEventos = () => {
                   name="fecha"
                   value={eventoActual.fecha || ""}
                   onChange={handleChange}
+                  min={new Date().toISOString().split('T')[0]}
                   className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
                   required
                 />
@@ -862,10 +856,10 @@ const AdminEventos = () => {
                   onChange={handleChange}
                   className="w-full bg-surface-container-high rounded-lg border border-white/10 px-3 py-2 text-on-surface focus:border-primary/50 focus:outline-none"
                 >
-                  <option value="Available">Available</option>
-                  <option value="Confirmed">Confirmed</option>
-                  <option value="Sold Out">Sold Out</option>
-                  <option value="Negotiating">Negotiating</option>
+                  <option value="Available">Disponible</option>
+                  <option value="Confirmed">Confirmado</option>
+                  <option value="Sold Out">Agotado</option>
+                  <option value="Negotiating">Negociando</option>
                 </select>
               </div>
               <div>

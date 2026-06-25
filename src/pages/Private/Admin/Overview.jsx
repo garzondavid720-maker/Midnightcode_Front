@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import NavbarAdmin from "../../../components/Layout/NavbarHeader";
 
 // Helpers para leer datos de localStorage
 const getFromStorage = (key, defaultValue = []) => {
@@ -60,14 +61,25 @@ const AdminHome = () => {
   ];
 
   const liveEvents = [
-    { id: 1, label: "14", title: "Ace of Spades Service", time: "2 mins ago", zone: "VIP Area B", color: "secondary-container" },
-    { id: 2, label: "08", title: "Bottle Service Requested", time: "5 mins ago", zone: "Terrace", color: "primary-container" },
-    { id: 3, label: "VIP", title: "Black Card Entry", time: "Just now", zone: "Gate 1", color: "tertiary-container" },
-    { id: 4, label: "22", title: "Check Out Complete", time: "12 mins ago", zone: "Lounge", color: "surface-variant", opacity: "50" },
+    { id: 1, label: "14", title: "Servicio de Ace of Spades", time: "hace 2 min", zone: "Área VIP B", color: "secondary-container" },
+    { id: 2, label: "08", title: "Solicitud de Servicio de Botella", time: "hace 5 min", zone: "Terraza", color: "primary-container" },
+    { id: 3, label: "VIP", title: "Entrada con Black Card", time: "Justo ahora", zone: "Puerta 1", color: "tertiary-container" },
+    { id: 4, label: "22", title: "Check-out Completado", time: "hace 12 min", zone: "Lounge", color: "surface-variant", opacity: "50" },
+  ];
+
+  // Traducir nombres de licores para el gráfico
+  const topSpiritsTranslated = [
+    { name: "Vesper", value: 85 },
+    { name: "Old Fashioned", value: 60 },
+    { name: "Black Card", value: 95 },
+    { name: "Paloma", value: 45 },
+    { name: "Martini", value: 70 },
   ];
 
   return (
     <>
+      <NavbarAdmin />
+
       {/* ===== ESTILOS (idénticos al HTML) ===== */}
       <style>{`
         body { background-color: #050505; color: #e5e2e1; }
@@ -156,7 +168,7 @@ const AdminHome = () => {
 
         .px-margin-mobile { padding-left: 16px; padding-right: 16px; }
         .px-margin-desktop { padding-left: 48px; padding-right: 48px; }
-        .pt-\\[80px\\] { padding-top: 80px; }
+        .pt-20 { padding-top: 5rem; }
         .pb-xl { padding-bottom: 64px; }
         .gap-gutter { gap: 24px; }
         .gap-base { gap: 8px; }
@@ -406,7 +418,6 @@ const AdminHome = () => {
         @media (min-width: 768px) {
           .md\\:flex { display: flex; }
           .md\\:hidden { display: none; }
-          .md\\:ml-64 { margin-left: 16rem; }
           .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
           .md\\:col-span-2 { grid-column: span 2 / span 2; }
           .md\\:flex-row { flex-direction: row; }
@@ -415,7 +426,6 @@ const AdminHome = () => {
           .md\\:bottom-10 { bottom: 40px; }
           .md\\:right-10 { right: 40px; }
           .md\\:block { display: block; }
-          .md\\:w-\\[calc\\(100\\%-16rem\\)\\] { width: calc(100% - 16rem); }
         }
         @media (min-width: 1024px) {
           .lg\\:grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
@@ -426,99 +436,22 @@ const AdminHome = () => {
         }
       `}</style>
 
-      {/* ===== SIDEBAR ===== */}
-      <aside className="h-screen w-64 fixed left-0 top-0 bg-surface/70 backdrop-blur-xl border-r border-white/10 shadow-[0_0_15px_rgba(233,179,255,0.1)] flex flex-col h-full py-lg px-md z-50">
-        <div className="mb-xl">
-          <h1 className="font-display-lg text-display-lg text-primary tracking-tighter">Luxe Management</h1>
-          <p className="text-on-surface-variant text-sm mt-xs">Deep Night Ops</p>
-        </div>
-        <nav className="flex-grow space-y-base">
-          <a className="flex items-center gap-md py-sm px-sm rounded-lg text-primary font-bold border-r-2 border-primary bg-primary/10 transition-all duration-300" href="#">
-            <span className="material-symbols-outlined">dashboard</span>
-            <span className="font-label-md">Dashboard</span>
-          </a>
-          <a className="flex items-center gap-md py-sm px-sm rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 hover:text-primary transition-all duration-300" href="/admin/usuarios">
-            <span className="material-symbols-outlined">group</span>
-            <span className="font-label-md">Usuarios</span>
-          </a>
-          <a className="flex items-center gap-md py-sm px-sm rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 hover:text-primary transition-all duration-300" href="/admin/ventas">
-            <span className="material-symbols-outlined">payments</span>
-            <span className="font-label-md">Ventas</span>
-          </a>
-          <a className="flex items-center gap-md py-sm px-sm rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 hover:text-primary transition-all duration-300" href="/admin/eventos">
-            <span className="material-symbols-outlined">event</span>
-            <span className="font-label-md">Eventos</span>
-          </a>
-          <a className="flex items-center gap-md py-sm px-sm rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 hover:text-primary transition-all duration-300" href="/admin/productos">
-            <span className="material-symbols-outlined">inventory_2</span>
-            <span className="font-label-md">Productos</span>
-          </a>
-          <a className="flex items-center gap-md py-sm px-sm rounded-lg text-on-surface-variant font-medium hover:bg-primary/5 hover:text-primary transition-all duration-300" href="/admin/reservas">
-            <span className="material-symbols-outlined">event_seat</span>
-            <span className="font-label-md">Reservas</span>
-          </a>
-        </nav>
-        <div className="mt-auto">
-          <button className="w-full py-sm bg-primary text-on-primary font-bold rounded-lg hover:brightness-110 transition-all scale-105 shadow-lg shadow-primary/20">
-            Live Status
-          </button>
-        </div>
-      </aside>
-
-      {/* ===== HEADER ===== */}
-      <header className="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 bg-surface/70 backdrop-blur-xl border-b border-white/10 shadow-md flex justify-between items-center px-margin-desktop py-base">
-        <div className="flex items-center gap-md">
-          <span className="font-headline-lg text-headline-lg text-primary uppercase tracking-widest">Luxe Nightlife</span>
-          <div className="relative group">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant">search</span>
-            <input
-              className="bg-surface-container-low border-none rounded-full pl-10 pr-md py-xs text-on-surface focus:ring-2 focus:ring-primary/50 transition-all w-64"
-              placeholder="Search data points..."
-              type="text"
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-lg">
-          <div className="flex gap-md">
-            <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">notifications</button>
-            <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">settings</button>
-            <button
-              className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors"
-              onClick={() => window.location.href = "/home"}
-            >
-              logout
-            </button>
-          </div>
-          <div className="flex items-center gap-sm border-l border-white/10 pl-lg">
-            <div className="text-right">
-              <p className="text-sm font-bold text-on-surface">Alex Mercer</p>
-              <p className="text-[10px] text-primary tracking-widest uppercase">Floor Manager</p>
-            </div>
-            <img
-              className="w-10 h-10 rounded-full border-2 border-primary/30 object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1tRGL0ovUcZGUj5j7hT0iXS5W6iV5fm_pFEfzqQR85TgEhhp_OTd7msnSsYNtFsumUWCXOze2lr7T8Bnd94j17wb0Wn7Zup-vhwU8_LkbvwZF_Vdq6CkWPtda7Y2KlD5vua6HRZgjNUwkY3UA9ri33iaO-vE2mCXYfBNBlcY6wDSFq2Uw0vqmDZClDuME39UU7zvXhngluEBXUck1t94l1rc_SX5GZcdqnGPzyEGtdKYViMXwR8uWrNHKcHhR5miyUq7bQMkoBzJn"
-              alt="Alex Mercer"
-            />
-          </div>
-        </div>
-      </header>
-
       {/* ===== MAIN CONTENT ===== */}
-      <main className="ml-64 pt-[80px] min-h-screen relative overflow-hidden">
-        <div className="p-margin-desktop space-y-md relative z-10">
+      <main className="pt-20 min-h-screen relative overflow-hidden">
+        <div className="px-4 md:px-8 max-w-7xl mx-auto py-6 space-y-6 relative z-10">
           {/* Header Section */}
-          <div className="flex justify-between items-end mb-lg">
+          <div className="flex justify-between items-end mb-6">
             <div>
-              <h2 className="font-headline-lg text-headline-lg text-on-surface mb-xs">Live Analytics</h2>
-              <p className="text-on-surface-variant flex items-center gap-xs">
+              <h2 className="font-headline-lg text-headline-lg text-on-surface mb-1">Análisis en Vivo</h2>
+              <p className="text-on-surface-variant flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                Streaming data from 4 Bar Terminals &amp; Entry Gate
+                Datos en tiempo real desde 4 terminales de barra y puerta de entrada
               </p>
             </div>
-            <div className="flex gap-sm">
-              <div className="glass-card px-md py-sm rounded-xl flex items-center gap-md">
+            <div className="flex gap-3">
+              <div className="glass-card px-4 py-2 rounded-xl flex items-center gap-3">
                 <div className="text-center">
-                  <p className="text-on-surface-variant text-[10px] uppercase tracking-tighter">Current Occupancy</p>
+                  <p className="text-on-surface-variant text-[10px] uppercase tracking-tighter">Ocupación Actual</p>
                   <p className="font-stats-number text-stats-number text-primary">{stats.ocupacionActual}</p>
                 </div>
                 <div className="w-12 h-12">
@@ -532,20 +465,20 @@ const AdminHome = () => {
           </div>
 
           {/* Bento Grid Layout */}
-          <div className="grid grid-cols-12 gap-gutter">
-            {/* Main Chart: Entry Speed (Line Chart) - Estático */}
-            <div className="col-span-8 glass-card rounded-xl p-md flex flex-col h-[400px]">
-              <div className="flex justify-between items-start mb-md">
+          <div className="grid grid-cols-12 gap-6">
+            {/* Main Chart: Entry Speed (Line Chart) */}
+            <div className="col-span-8 glass-card rounded-xl p-4 flex flex-col h-[400px]">
+              <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="font-headline-md text-headline-md text-on-surface">Entry Flow Speed</h3>
-                  <p className="text-on-surface-variant text-sm">Real-time people/min through Main Entry</p>
+                  <h3 className="font-headline-md text-headline-md text-on-surface">Velocidad de Flujo de Entrada</h3>
+                  <p className="text-on-surface-variant text-sm">Personas por minuto en tiempo real (Entrada Principal)</p>
                 </div>
-                <div className="flex gap-xs">
-                  <span className="px-sm py-1 bg-primary/10 text-primary text-xs rounded-full border border-primary/20">LIVE</span>
-                  <span className="px-sm py-1 bg-surface-container text-on-surface-variant text-xs rounded-full">Last 60 Mins</span>
+                <div className="flex gap-2">
+                  <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full border border-primary/20">EN VIVO</span>
+                  <span className="px-2 py-1 bg-surface-container text-on-surface-variant text-xs rounded-full">Últimos 60 min</span>
                 </div>
               </div>
-              <div className="flex-grow relative flex items-end justify-between gap-2 pt-md">
+              <div className="flex-grow relative flex items-end justify-between gap-2 pt-4">
                 <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
                   <defs>
                     <linearGradient id="lineGrad" x1="0" x2="0" y1="0" y2="1">
@@ -567,69 +500,69 @@ const AdminHome = () => {
             </div>
 
             {/* AI Module: Peak Prediction */}
-            <div className="col-span-4 glass-card rounded-xl p-md border-primary/30 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-md opacity-20 group-hover:opacity-40 transition-opacity">
+            <div className="col-span-4 glass-card rounded-xl p-4 border-primary/30 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">
                 <span className="material-symbols-outlined text-6xl text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>psychology</span>
               </div>
               <div className="relative z-10 flex flex-col h-full">
-                <span className="font-label-md text-primary tracking-widest uppercase mb-xs">AI Insight</span>
-                <h3 className="font-headline-md text-headline-md text-on-surface mb-md">Peak Prediction</h3>
-                <div className="space-y-lg flex-grow">
-                  <div className="flex items-center gap-md">
+                <span className="font-label-md text-primary tracking-widest uppercase mb-1">IA Insight</span>
+                <h3 className="font-headline-md text-headline-md text-on-surface mb-4">Predicción de Pico</h3>
+                <div className="space-y-4 flex-grow">
+                  <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-full border-4 border-dashed border-primary/30 flex items-center justify-center">
                       <span className="font-stats-number text-primary">23:15</span>
                     </div>
                     <div>
-                      <p className="text-on-surface font-bold">Estimated Peak</p>
-                      <p className="text-on-surface-variant text-sm">Expect +20% surge from North Gate VIPs</p>
+                      <p className="text-on-surface font-bold">Pico Estimado</p>
+                      <p className="text-on-surface-variant text-sm">Se espera un +20% de afluencia desde Puerta Norte VIP</p>
                     </div>
                   </div>
-                  <div className="bg-primary/5 border border-primary/10 p-md rounded-lg">
-                    <p className="text-on-surface-variant text-sm leading-relaxed italic">"Arrival patterns suggest a bottleneck at Bar 2 within 15 minutes. Suggest deploying 2 floaters to the lounge zone."</p>
+                  <div className="bg-primary/5 border border-primary/10 p-4 rounded-lg">
+                    <p className="text-on-surface-variant text-sm leading-relaxed italic">"Los patrones de llegada sugieren un cuello de botella en Barra 2 en los próximos 15 minutos. Se recomienda desplegar 2 ayudantes en la zona lounge."</p>
                   </div>
                 </div>
-                <button className="mt-md w-full py-sm border border-primary/50 text-primary font-bold rounded-lg hover:bg-primary hover:text-on-primary transition-all flex items-center justify-center gap-sm">
-                  <span className="material-symbols-outlined text-sm">bolt</span> Apply Logistics Optimization
+                <button className="mt-4 w-full py-2 border border-primary/50 text-primary font-bold rounded-lg hover:bg-primary hover:text-on-primary transition-all flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-sm">bolt</span> Aplicar Optimización Logística
                 </button>
               </div>
             </div>
 
             {/* Secondary Chart: Top Selling Drinks (Bar Chart) */}
-            <div className="col-span-5 glass-card rounded-xl p-md h-[350px] flex flex-col">
-              <div className="mb-md">
-                <h3 className="font-headline-md text-headline-md text-on-surface">Top Spirits</h3>
-                <p className="text-on-surface-variant text-sm">Volume by unit tonight</p>
+            <div className="col-span-5 glass-card rounded-xl p-4 h-[350px] flex flex-col">
+              <div className="mb-4">
+                <h3 className="font-headline-md text-headline-md text-on-surface">Licores Más Vendidos</h3>
+                <p className="text-on-surface-variant text-sm">Volumen en unidades esta noche</p>
               </div>
-              <div className="flex-grow flex items-end justify-around gap-sm pt-md">
+              <div className="flex-grow flex items-end justify-around gap-2 pt-4">
                 {topSpirits.map((item, idx) => (
-                  <div key={idx} className="flex flex-col items-center gap-sm flex-1">
+                  <div key={idx} className="flex flex-col items-center gap-2 flex-1">
                     <div
                       className="w-full bg-cyan-500 chart-bar rounded-t-sm neon-glow-cyan"
                       style={{ height: `${item.value}%` }}
                     ></div>
-                    <span className="text-[10px] text-on-surface-variant uppercase rotate-45 mt-sm">{item.name}</span>
+                    <span className="text-[10px] text-on-surface-variant uppercase rotate-45 mt-2">{item.name}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Tertiary: Hourly Revenue (Heatmap/List) */}
-            <div className="col-span-7 glass-card rounded-xl p-md h-[350px] flex flex-col">
-              <div className="flex justify-between items-center mb-md">
+            <div className="col-span-7 glass-card rounded-xl p-4 h-[350px] flex flex-col">
+              <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h3 className="font-headline-md text-headline-md text-on-surface">Revenue Velocity</h3>
-                  <p className="text-on-surface-variant text-sm">Hourly cumulative breakdown</p>
+                  <h3 className="font-headline-md text-headline-md text-on-surface">Velocidad de Ingresos</h3>
+                  <p className="text-on-surface-variant text-sm">Desglose acumulado por hora</p>
                 </div>
                 <div className="text-right">
                   <p className="text-primary font-stats-number text-stats-number">${stats.ingresosTotales.toFixed(2)}</p>
-                  <p className="text-on-surface-variant text-[10px] uppercase">Tonight's Total</p>
+                  <p className="text-on-surface-variant text-[10px] uppercase">Total de esta noche</p>
                 </div>
               </div>
-              <div className="flex-grow space-y-sm overflow-y-auto pr-xs">
+              <div className="flex-grow space-y-2 overflow-y-auto pr-1">
                 {revenueData.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-sm bg-white/5 rounded-lg border-l-4 border-primary" style={{ borderLeftColor: `rgba(233,179,255,${0.3 + idx * 0.15})` }}>
+                  <div key={idx} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border-l-4 border-primary" style={{ borderLeftColor: `rgba(233,179,255,${0.3 + idx * 0.15})` }}>
                     <span className="font-mono text-sm">{item.hour}</span>
-                    <div className="flex-grow mx-lg h-2 bg-surface-container rounded-full overflow-hidden">
+                    <div className="flex-grow mx-4 h-2 bg-surface-container rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary neon-glow-primary"
                         style={{ width: `${item.percent}%` }}
@@ -643,16 +576,16 @@ const AdminHome = () => {
           </div>
 
           {/* Bottom Live Feed */}
-          <div className="glass-card rounded-xl p-md">
-            <div className="flex items-center gap-sm mb-md text-primary">
+          <div className="glass-card rounded-xl p-4 mt-6">
+            <div className="flex items-center gap-2 mb-4 text-primary">
               <span className="material-symbols-outlined">live_tv</span>
-              <h3 className="font-label-md uppercase tracking-widest">Live Table Events</h3>
+              <h3 className="font-label-md uppercase tracking-widest">Eventos en Vivo de Mesas</h3>
             </div>
-            <div className="grid grid-cols-4 gap-md">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {liveEvents.map((event) => (
                 <div
                   key={event.id}
-                  className={`p-sm bg-surface-container rounded border border-white/5 flex gap-sm items-center ${event.opacity ? `opacity-${event.opacity}` : ''}`}
+                  className={`p-3 bg-surface-container rounded border border-white/5 flex gap-3 items-center ${event.opacity ? `opacity-${event.opacity}` : ''}`}
                 >
                   <span className={`w-8 h-8 rounded-full bg-${event.color} text-on-${event.color.includes('secondary') ? 'secondary' : event.color.includes('primary') ? 'primary' : event.color.includes('tertiary') ? 'tertiary' : 'surface'} flex items-center justify-center font-bold`}>
                     {event.label}
@@ -667,22 +600,22 @@ const AdminHome = () => {
           </div>
 
           {/* Tarjetas de resumen de módulos */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter mt-md">
-            <div className="glass-card p-md rounded-xl flex justify-between items-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+            <div className="glass-card p-4 rounded-xl flex justify-between items-center">
               <div>
                 <p className="text-xs text-on-surface-variant uppercase tracking-widest">Usuarios</p>
                 <p className="font-stats-number text-stats-number text-primary">{stats.usuarios}</p>
               </div>
               <span className="material-symbols-outlined text-4xl text-primary">group</span>
             </div>
-            <div className="glass-card p-md rounded-xl flex justify-between items-center">
+            <div className="glass-card p-4 rounded-xl flex justify-between items-center">
               <div>
                 <p className="text-xs text-on-surface-variant uppercase tracking-widest">Ventas</p>
                 <p className="font-stats-number text-stats-number text-secondary">{stats.ventas}</p>
               </div>
               <span className="material-symbols-outlined text-4xl text-secondary">payments</span>
             </div>
-            <div className="glass-card p-md rounded-xl flex justify-between items-center">
+            <div className="glass-card p-4 rounded-xl flex justify-between items-center">
               <div>
                 <p className="text-xs text-on-surface-variant uppercase tracking-widest">Eventos</p>
                 <p className="font-stats-number text-stats-number text-tertiary">{stats.eventos}</p>
@@ -694,9 +627,9 @@ const AdminHome = () => {
       </main>
 
       {/* ===== FAB ===== */}
-      <button className="fixed bottom-margin-desktop right-margin-desktop w-16 h-16 rounded-full bg-primary text-on-primary shadow-2xl flex items-center justify-center group hover:scale-110 transition-transform z-50">
+      <button className="fixed bottom-6 right-6 md:bottom-10 md:right-10 w-16 h-16 rounded-full bg-primary text-on-primary shadow-2xl flex items-center justify-center group hover:scale-110 transition-transform z-50">
         <span className="material-symbols-outlined text-3xl group-hover:rotate-90 transition-transform">add</span>
-        <span className="absolute right-20 bg-primary text-on-primary px-md py-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-bold">Add Live Note</span>
+        <span className="absolute right-20 bg-primary text-on-primary px-4 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-bold">Agregar Nota en Vivo</span>
       </button>
     </>
   );
