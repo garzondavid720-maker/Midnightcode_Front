@@ -4,7 +4,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { authService } from '../../services/authService';
+import { authService } from '../../../src/services/authService';
 import AuthLayout from '../../components/Auth/AuthLayout';
 import AuthCard from '../../components/Auth/AuthCard';
 import FormInput from '../../components/Auth/FormInput';
